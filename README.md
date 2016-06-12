@@ -72,4 +72,8 @@
 - [Improved Xcode Build Phases](http://matthewmorey.com/improved-xcode-build-phases/)
 - **[玩转Podfile](https://github.com/duguyihou/musical-spork/blob/master/玩转Podfile.md)**
 - [构造方法的方法论](https://github.com/duguyihou/musical-spork/blob/master/The-strategy-of-building-a-method.md)
+- [Difference between nullable, __nullable and _Nullable in Objective-C](http://stackoverflow.com/questions/32452889/difference-between-nullable-nullable-and-nullable-in-objective-c/33682230#33682230)
+一个下划线首字母大写的是 clang 标准，剩下两种是 OC 标准，不带下划线的可以修饰 property。
+- [nil / Nil / NULL / NSNull](http://nshipster.cn/nil/)
+- [NSNumber VS NSInteger](https://github.com/duguyihou/musical-spork/blob/master/NSNumber%20NSInteger.md)
 - [iOS技能图谱](https://github.com/duguyihou/musical-spork/blob/master/iOS技能图谱.md)
