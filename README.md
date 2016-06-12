@@ -4,7 +4,6 @@
 
 ## Run loop
 
-
 ## typedef
 - [typedef](https://github.com/duguyihou/musical-spork/blob/master/typedef.md)
 
@@ -15,12 +14,6 @@
 
 - [Protocol](https://github.com/duguyihou/musical-spork/blob/master/Protocol.md)
 
-## iOS Interview
-* [《招聘一个靠谱的 iOS》](https://github.com/ChenYilong/iOSInterviewQuestions)
-* [iOS-Developer-Interview-Questions](https://github.com/lzyy/iOS-Developer-Interview-Questions)
-* [标哥的技术博客](http://www.henishuo.com)
-* [ios-tips](https://github.com/coolnameismy/ios-tips)
-
 ## AppDelegate
 - [AppDelegate](https://github.com/duguyihou/musical-spork/blob/master/AppDelegate.md)
 
@@ -30,8 +23,6 @@
 
 ## 调试技巧
 - [调试技巧](https://github.com/duguyihou/musical-spork/blob/master/调试技巧.md)
-
-- [iOS调试技巧](http://www.henishuo.com/ios-lldb-debug-tech/)
 
 ## Unit Testing
 - [单元测试编码规范](http://zixun.github.io/blog/2015/04/16/iosdan-yuan-ce-shi-xi-lie-dan-yuan-ce-shi-bian-ma-gui-fan/)
@@ -60,6 +51,12 @@
 
 ## Refactor
 - [Refactor](https://github.com/duguyihou/musical-spork/blob/master/Refactor.md)
+
+## iOS Interview
+* [《招聘一个靠谱的 iOS》](https://github.com/ChenYilong/iOSInterviewQuestions)
+* [iOS-Developer-Interview-Questions](https://github.com/lzyy/iOS-Developer-Interview-Questions)
+* [标哥的技术博客](http://www.henishuo.com)
+* [ios-tips](https://github.com/coolnameismy/ios-tips)
 
 ## More
 - [iOS开发常用的宏](https://github.com/duguyihou/musical-spork/blob/master/iOS开发常用的宏.md)
