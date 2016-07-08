@@ -58,19 +58,3 @@
 * [标哥的技术博客](http://www.henishuo.com)
 * [ios-tips](https://github.com/coolnameismy/ios-tips)
 
-## More
-- [iOS开发常用的宏](https://github.com/duguyihou/musical-spork/blob/master/iOS开发常用的宏.md)
-- [Xib SB](http://www.jianshu.com/users/0e8a4d8086c6/latest_articles)
-- [在写一个iOS应用之前必须做的7件事(附相关资源)](http://www.cocoachina.com/ios/20160316/15685.html)
-- [在Pod库中使用xcasset的拷贝陷阱](http://blog.startry.com/2016/03/17/the-trap-of-image-resource/)
-- [iOS 项目的目录结构能看出你的开发经验](http://www.cocoachina.com/ios/20150821/13117.html)
-- [iOS到Android到底有多远](http://www.oncenote.com/2015/07/28/iOS-To-Android/)
-- [采用现代Objective-C语法--译文](http://blog.devwu.com/translation/2014-06-03/adopting-modern-objective-c/)
-- [Improved Xcode Build Phases](http://matthewmorey.com/improved-xcode-build-phases/)
-- **[玩转Podfile](https://github.com/duguyihou/musical-spork/blob/master/玩转Podfile.md)**
-- [构造方法的方法论](https://github.com/duguyihou/musical-spork/blob/master/The-strategy-of-building-a-method.md)
-- [Difference between nullable, __nullable and _Nullable in Objective-C](http://stackoverflow.com/questions/32452889/difference-between-nullable-nullable-and-nullable-in-objective-c/33682230#33682230)
-一个下划线首字母大写的是 clang 标准，剩下两种是 OC 标准，不带下划线的可以修饰 property。
-- [nil / Nil / NULL / NSNull](http://nshipster.cn/nil/)
-- [NSNumber VS NSInteger](https://github.com/duguyihou/musical-spork/blob/master/NSNumber%20NSInteger.md)
-- [iOS技能图谱](https://github.com/duguyihou/musical-spork/blob/master/iOS技能图谱.md)
