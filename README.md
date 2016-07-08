@@ -34,7 +34,7 @@
 ## 布局
 
 ### Masory
-- [Wasory layout](http://www.henishuo.com/category/autolayout/)
+
 - [layoutSubviews setNeedsLayout layoutIfNeeded drawRect sizeToFit](https://github.com/duguyihou/musical-spork/blob/master/layoutSubviews%20setNeedsLayout%20layoutIfNeeded%20drawRect%20sizeToFit.md)
 - [Offscreen rendering](https://github.com/duguyihou/musical-spork/blob/master/offScreen%20Rendering.md)
 
