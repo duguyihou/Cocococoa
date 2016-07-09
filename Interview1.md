@@ -108,3 +108,199 @@ for (int i = 0; i < rows; ++i) {
 <!-- - 冒泡排序：所谓冒泡，就像水中冒泡一样，将值小的不断将上浮，值大的不断往下沉。每一趟都将值最大的交换到这一趟的最后，保证待查找序列部分最后一个元素是最大值。 -->
 
 插入排序 插入排序分为直接插入排序和折半插入排序。对于直接插入排序，每一趟都寻找a[i-1] > a[i]的，说明这时候是无序的，记录待排序值a[i]，然后将前面已有序的部分，移动位置，使a[i]值插入后，已有序部分依然有序；对于折半插入排序，每一趟都通过折半查找的方式来查找元素，然后移动位置，将之插入，使之有序，不过折半插入排序需要一个哨兵位置a[0]。
+
+##  给一个字符串，如何判断它是否是合法的IP地址，比如 “192.168.1.1” 就是合法的。
+首先，我们需要明确一个合法的IP格式应该是怎么样的，每个值是1-255，因此，我们可以通过字符串分割后，分别判断值是否在1-255即可。
+### Objective-C实现
+
+```objc
+/**
+ *    Judge whether the specified string is a valid form of IP or not.
+ *
+ *    @param ipString    The specified string to be checked.
+ *
+ *    @return YES if is a valid form of IP, otherwise NO.
+ */
+ - (BOOL)isValidIP:(NSString *)ipString {
+
+ if (ipString.length < 7) {
+ return NO;
+ }
+
+ NSArray *tempArray = [ipString componentsSeparatedByString:@"."];
+ if (tempArray.count != 4) {
+ return NO;
+ }
+
+ __block BOOL isValid = YES;
+ [tempArray enumerateObjectsUsingBlock:^(NSString *_Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+ if (obj.integerValue < 0 || obj.integerValue > 255) {
+ isValid = NO;
+ *stop = YES;
+ }
+
+ NSString *string = [NSString stringWithFormat:@"%d",obj.intValue];
+ if (![string isEqualToString:obj]) {
+ isValid = NO;
+ *stop = YES;
+ }
+ }];
+
+ return isValid;
+ }
+ 
+```
+
+### C实现
+```c
+/**
+ *    Input：a string，judge whether it is a valid form of IP string
+ *
+ *    @param ipString
+ *
+ *    @return 1 if it is a valid form of IP string, otherwise 0
+ */
+int isValidIP(char *ipString) {
+  int len = (int)strlen(ipString);
+
+  if (len < 7 || len > 15) {
+    return 0;
+  }
+
+  int itemValue = 0;
+  int index = 1;
+  for (int i = len - 1; i >= 0; --i) {
+    char ch = ipString[i];
+
+    if (ch >= '0' && ch <= '9') {
+      itemValue += (ch - '0') * pow(10, index - 1);
+      index++;
+    } else if (ch == '.') {
+      index = 1;
+      if (itemValue < 1 || itemValue > 255) {
+        return 0;
+      }
+
+      itemValue = 0;
+    } else {
+      return 0;
+    }
+  }
+
+  if (itemValue < 1 || itemValue > 255) {
+    return 0;
+  }
+
+  return 1;
+}
+```
+
+## 大数相加的思路，动手写代码实现
+大数相加的关键点是通过字符串来实现相加，以串最长的作为基准，将串短的高位补0，然后对位相加，并做好进位处理。
+```objc
+/**
+ *    做两个超大数相加算法，采用0补高位的方式再做加法运算
+ *
+ *    @param lhsSource    大数1
+ *    @param rhsSource    大数2
+ *    @param result        接收结果，确保长度足够
+ */
+void addBigNumbers(char *lhsSource, char *rhsSource, char *result) {
+  int lhsLen = (int)strlen(lhsSource);
+  int rhsLen = (int)strlen(rhsSource);
+  int len = lhsLen > rhsLen ? lhsLen : rhsLen;
+
+  char *temp = malloc(sizeof(char *) * (len + 2));
+  int i = lhsLen - 1;
+  int j = rhsLen - 1;
+  int k = 0;
+  char lhsChar = '0';
+  char rhsChar = '0';
+
+  // 进位
+  int carryBit = 0;
+  int z = 0;
+
+  while (i >= 0 || j >= 0) {
+    // 串短的就以'0'补位，用于做加法运算
+    if (i < 0) {
+      lhsChar = '0';
+    } else {
+      lhsChar = lhsSource[i];
+    }
+
+    // 串短的就以'0'补位，用于做加法运算
+    if (j < 0) {
+      rhsChar = '0';
+    } else {
+      rhsChar = rhsSource[j];
+    }
+
+    // 对位相加，再加上进位值
+    z = lhsChar - '0' + rhsChar - '0' + carryBit;
+    // 有可能>=10，需要取做进位处理
+    temp[k++] = z % 10 + '0';
+    // 更新进位
+    carryBit = z / 10;
+
+    i--;
+    j--;
+  }
+
+  // 全部相加完之后，有可能还有进位，需要将进位顶到高位
+  while (carryBit > 0) {
+    temp[k++] = carryBit % 10 + '0';
+    carryBit /= 10;
+  }
+
+  // 我们借助了临时字符数组来存储计算结果，但是计算结果是倒序的，
+  // 我们需要将计算结果变成正序
+  k--;
+  i = 0;
+  while (k >= 0) {
+    result[i++] = temp[k--];
+  }
+
+  // 别忘了添加上字符串结束标记符
+  result[i] = '\0';
+
+  // temp是自己在堆上申请的内存，记得释放
+  free(temp);
+}
+
+```
+写两个字符串相加：
+
+```objc
+char *lhsSource = "12368102369126318236218391231231232132132";
+char *rhsSource = "9999999999999991232399999999999999999999999";
+char result[100];
+addBigNumbers(lhsSource, rhsSource, result);
+NSLog(@"result = %s", result);
+
+// print
+// result = 10012368102369117550636218391231231232132131
+```
+
+## 简述TCP建立和关闭连接时，握手的过程。为什么前者是三次握手，后者需要四次？
+
+TCP建立连接时，握手的过程大概如下：
+
+- 客户端发送SYN到服务端
+- 服务端发布SYN/ACK到客户端，此时开始建立连接
+- 客户端发布ACK到服务端，此时正式建立好连接
+
+客户端发送SYN到服务端，而服务端返回了客户端发过来的SYN，同时也返回ACK，那么客户端接收到之后，就可以确定服务端收到了SYN信号，而客户端接收到服务端返回来的ACK信号后，再将ACK信号发送到服务端，服务端就明确客户端收到了服务端发过去的信号。因此，这三次握手就可以确定了双方的身份。
+TCP关闭连接时，握手的过程大致如下：
+- 客户端发送FIN包到服务端：此时客户端进入FIN_WAIT_1等待对方确认状态
+- 服务端返回ACK包到客户端：此时客户端结束FIN_WAIT_1状态，并进入FIN_WAIT_2状态，等待服务端的发过来的关闭请求
+- 服务端发送FIN包到客户端：此时服务端进入CLOSE_WAIT状态，等待客户端确认关闭请求
+- 客户端返回ACK包到服务端：此时服务端正式关闭，结束CLOSE_WAIT状态
+
+TCP关闭连接之所以需要四次握手，是因为TCP连接是全双工，是双向的。
+
+## 假设有10W条电话号码，如何通过输入电话号码的某一段内容，快速搜索出来。比如输入234，以下两个号码都会显示在搜索结果中：
+```
+123456789000
+188888823400
+```

@@ -108,3 +108,18 @@ ARC下还是有可能出现内存泄露的，内存得不到释放，特别是�
 
 当进入播放页面时马上又返回上一个页面，偶尔出现闪退，原因就是出现了野指针（访问了已释放的对象内存区）。当进入播放页面时，就会立刻去解析视频数据，内部是FFMPEG操作，当快速返回上一个页面时，FFMPEG还在操作中，导致访问了已释放的对象。
 使用block时，也会出现野指针。
+
+## OC的数组中，添加nil对象会有什么问题?
+对于数组跟字典，插入nil对象都会引起崩溃。
+```objc
+NSMutableArray *array = [[NSMutableArray alloc] init];
+
+//  -[__NSArrayM insertObject:atIndex:]: object cannot be nil'
+[array addObject:nil];
+```
+但是，如果我们在初始化时，通过下面的API来添加nil，是不会有事的，只是表示结束而已。
+```objc
+NSArray *array = [[NSArray alloc] initWithObjects:@"sss", nil, @"sfsdf"];
+// 结果只有sss，后面的因为中间有nil而被过滤了
+NSLog(@"%@", array);
+```
