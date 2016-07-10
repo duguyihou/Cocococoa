@@ -2383,3 +2383,6 @@ UIView bringSubviewToFront:Subview];       //将Subview往前移动一个图层�
 ```objc
 NSInteger index = [[UIView subviews] indexOfObject:Subview名称];       //取得Index
 ```
+
+## **如何用一行代码计算NSString字符的个数**
+正确答案是`[str lengthOfBytesUsingEncoding:NSUTF32StringEncoding]/4` 有少部分朋友答对了。 当然还有其他方式，但绝不是`str.length`。 length返回的是以`utf16`为单位的code unit个数。像很多emoji表情都会占2个unit,实际却是一个字符。不了解的朋友需要补充下Unicode相关知识。
