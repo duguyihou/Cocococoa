@@ -315,3 +315,78 @@ Binary search tree:二叉搜索树。
 4. delete：最坏情况下，时间复杂度为O(h)+指针的移动开销。
 
 可以看到，二叉搜索树的dictionary operation的时间复杂度与树的高度h相关。所以需要尽可能的降低树的高度，由此引出平衡二叉树Balanced binary tree。它要求左右两个子树的高度差的绝对值不超过1，并且左右两个子树都是一棵平衡二叉树。这样就可以将搜索树的高度尽量减小。常用算法有红黑树、AVL、Treap、伸展树等。
+
+## 反转二叉树，不用递归
+```
+/**
+ * Definition for a binary tree node.
+ * public class TreeNode {
+ *     int val;
+ *     TreeNode left;
+ *     TreeNode right;
+ *     TreeNode(int x) { val = x; }
+ * }
+ */
+```
+递归方式：
+```swift
+public class Solution {
+public TreeNode invertTree(TreeNode root) {
+    if (root == null) {
+        return null;
+    }
+    root.left = invertTree(root.left);
+    root.right = invertTree(root.right);
+    TreeNode tmp = root.left;
+    root.left = root.right;
+    root.right = tmp;
+    return root;
+}
+}
+```
+object-c实现：
+```objc
+/**
+ * 翻转二叉树（又叫：二叉树的镜像）
+ *
+ * @param rootNode 根节点
+ *
+ * @return 翻转后的树根节点（其实就是原二叉树的根节点）
+ */
+ + (BinaryTreeNode *)invertBinaryTree:(BinaryTreeNode *)rootNode {
+    if (!rootNode) {  return nil; }
+    if (!rootNode.leftNode && !rootNode.rightNode) {  return rootNode; }
+    [self invertBinaryTree:rootNode.leftNode];
+    [self invertBinaryTree:rootNode.rightNode];
+    BinaryTreeNode *tempNode = rootNode.leftNode;
+    rootNode.leftNode = rootNode.rightNode;
+    rootNode.rightNode = tempNode;
+    return rootNode;
+  }
+```
+非递归方式：
+```
++ (BinaryTreeNode *)invertBinaryTree:(BinaryTreeNode *)rootNode {
+if (!rootNode) {  return nil; }
+if (!rootNode.leftNode && !rootNode.rightNode) {  return rootNode; }
+NSMutableArray *queueArray = [NSMutableArray array]; //数组当成队列
+[queueArray addObject:rootNode]; //压入根节点
+while (queueArray.count > 0) {
+    BinaryTreeNode *node = [queueArray firstObject];
+    [queueArray removeObjectAtIndex:0]; //弹出最前面的节点，仿照队列先进先出原则
+    BinaryTreeNode *pLeft = node.leftNode;
+    node.leftNode = node.rightNode;
+    node.rightNode = pLeft;
+
+    if (node.leftNode) {
+        [queueArray addObject:node.leftNode];
+    }
+    if (node.rightNode) {
+        [queueArray addObject:node.rightNode];
+    }
+
+}
+
+return rootNode;
+}
+```

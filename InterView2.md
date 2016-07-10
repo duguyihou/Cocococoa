@@ -1841,3 +1841,81 @@ RESTful架构：
 　　（1）每一个URI代表一种资源；
 　　（2）客户端和服务器之间，传递这种资源的某种表现层；
 　　（3）客户端通过四个HTTP动词，对服务器端资源进行操作，实现"表现层状态转化"。
+
+## 写一个单例模式
+```objc
++ (AccountManager *)sharedManager
+{
+    static AccountManager *sharedAccountManagerInstance = nil;
+    static dispatch_once_t predicate;
+    dispatch_once(&predicate, ^{
+            sharedAccountManagerInstance = [[self alloc] init];
+    });
+return sharedAccountManagerInstance;
+}
+```
+## iOS Life Cycle
+**应用程序的状态**
+**Not running未运行**：程序没启动。
+**Inactive未激活**：程序在前台运行，不过没有接收到事件。在没有事件处理情况下程序通常停留在这个状态。
+**Active激活**：程序在前台运行而且接收到了事件。这也是前台的一个正常的模式。
+**Backgroud后台**：程序在后台而且能执行代码，大多数程序进入这个状态后会在在这个状态上停留一会。时间到之后会进入挂起状态(Suspended)。有的程序经过特殊的请求后可以长期处于Backgroud状态。
+**Suspended挂起**：程序在后台不能执行代码。系统会自动把程序变成这个状态而且不会发出通知。当挂起时，程序还是停留在内存中的，当系统内存低时，系统就把挂起的程序清除掉，为前台程序提供更多的内存。
+
+iOS的入口在main.m文件：
+```objc
+int main(int argc, char *argv[])
+{
+@autoreleasepool {
+    return UIApplicationMain(argc, argv, nil, NSStringFromClass([AppDelegate class]));
+}
+}
+```
+main函数的两个参数，iOS中没有用到，包括这两个参数是为了与标准ANSI C保持一致。 UIApplicationMain函数，前两个和main函数一样，重点是后两个。
+
+后两个参数分别表示程序的主要类(principal class)和代理类(delegate class)。如果主要类(principal class)为nil，将从Info.plist中获取，如果Info.plist中不存在对应的key，则默认为UIApplication；如果代理类(delegate class)将在新建工程时创建。
+根据UIApplicationMain函数，程序将进入AppDelegate.m，这个文件是xcode新建工程时自动生成的。下面看一下AppDelegate.m文件，这个关乎着应用程序的生命周期。
+
+1. application didFinishLaunchingWithOptions：当应用程序启动时执行，应用程序启动入口，只在应用程序启动时执行一次。若用户直接启动，lauchOptions内无数据,若通过其他方式启动应用，lauchOptions包含对应方式的内容。
+2. applicationWillResignActive：在应用程序将要由活动状态切换到非活动状态时候，要执行的委托调用，如 按下 home 按钮，返回主屏幕，或全屏之间切换应用程序等。
+3. applicationDidEnterBackground：在应用程序已进入后台程序时，要执行的委托调用。
+4. applicationWillEnterForeground：在应用程序将要进入前台时(被激活)，要执行的委托调用，刚好与applicationWillResignActive 方法相对应。
+5. applicationDidBecomeActive：在应用程序已被激活后，要执行的委托调用，刚好与applicationDidEnterBackground 方法相对应。
+6. applicationWillTerminate：在应用程序要完全推出的时候，要执行的委托调用，这个需要要设置UIApplicationExitsOnSuspend的键值。
+
+**初次启动**：
+iOS_didFinishLaunchingWithOptions
+iOS_applicationDidBecomeActive
+**按下home键**：
+iOS_applicationWillResignActive
+iOS_applicationDidEnterBackground
+**点击程序图标进入**：
+iOS_applicationWillEnterForeground
+iOS_applicationDidBecomeActive
+
+当应用程序进入后台时,应该保存用户数据或状态信息，所有没写到磁盘的文件或信息，在进入后台时，最后都写到磁盘去，因为程序可能在后台被杀死。释放尽可能释放的内存。
+```objc
+- (void)applicationDidEnterBackground:(UIApplication *)application
+```
+方法有大概5秒的时间让你完成这些任务。如果超过时间还有未完成的任务，你的程序就会被终止而且从内存中清除。
+
+如果还需要长时间的运行任务，可以在该方法中调用
+```objc
+[application beginBackgroundTaskWithExpirationHandler:^{
+
+    NSLog(@"begin Background Task With Expiration Handler");
+
+}];
+
+```
+**程序终止**
+程序只要符合以下情况之一，只要进入后台或挂起状态就会终止：
+
+1. OS4.0以前的系统
+2. app是基于iOS4.0之前系统开发的。
+3. 设备不支持多任务
+4. 在Info.plist文件中，程序包含了 UIApplicationExitsOnSuspend 键。
+
+系统常常是为其他app启动时由于内存不足而回收内存最后需要终止应用程序，但有时也会是由于app很长时间才响应而终止。如果app当时运行在后台并且没有暂停，系统会在应用程序终止之前调用app的代理的方法 - (void)applicationWillTerminate:(UIApplication *)application，这样可以让你可以做一些清理工作。你可以保存一些数据或app的状态。这个方法也有5秒钟的限制。超时后方法会返回程序从内存中清除。
+
+注意：用户可以手工关闭应用程序。
