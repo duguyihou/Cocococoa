@@ -1273,6 +1273,29 @@ typedef struct objc_object *id;
     }];
 ```
 
+### SDWebImage库的作用
+通过对UIImageView的类别扩展来实现异步加载替换图片的工作。
+
+主要用到的对象：
+1. UIImageView (WebCache)类别，入口封装，实现读取图片完成后的回调
+2. SDWebImageManager，对图片进行管理的中转站，记录那些图片正在读取。
+向下层读取Cache（调用SDImageCache），或者向网络读取对象（调用SDWebImageDownloader） 。
+实现SDImageCache和SDWebImageDownloader的回调。
+3. SDImageCache，根据URL的MD5摘要对图片进行存储和读取（实现存在内存中或者存在硬盘上两种实现）
+实现图片和内存清理工作。
+4. SDWebImageDownloader，根据URL向网络读取数据（实现部分读取和全部读取后再通知回调两种方式）
+
+其他类：
+SDWebImageDecoder，异步对图像进行了一次解压⋯⋯
+1. SDImageCache是怎么做数据管理的?
+
+SDImageCache分两个部分，一个是内存层面的，一个是硬盘层面的。内存层面的相当是个缓存器，以Key-Value的形式存储图片。当内存不够的时候会清除所有缓存图片。用搜索文件系统的方式做管理，文件替换方式是以时间为单位，剔除时间大于一周的图片文件。当SDWebImageManager向SDImageCache要资源时，先搜索内存层面的数据，如果有直接返回，没有的话去访问磁盘，将图片从磁盘读取出来，然后做Decoder，将图片对象放到内存层面做备份，再返回调用层。
+
+2. 为啥必须做Decoder?
+由于UIImage的imageWithData函数是每次画图的时候才将Data解压成ARGB的图像，所以在每次画图的时候，会有一个解压操作，这样效率很低，但是只有瞬时的内存需求。为了提高效率通过SDWebImageDecoder将包装在Data下的资源解压，然后画在另外一张图片上，这样这张新图片就不再需要重复解压了。
+这种做法是典型的空间换时间的做法。
+
+
 ## 设计个简单的图片内存缓存器（移除策略是一定要说的）
 图片的内存缓存，可以考虑将图片数据保存到一个数据模型中。所以在程序运行时这个模型都存在内存中。
 移除策略：释放数据模型对象。
