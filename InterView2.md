@@ -885,6 +885,47 @@ http是客户端用http协议进行请求，发送请求时候需要封装http�
 
 scoket是客户端跟服务器直接使用socket“套接字”进行连接，并没有规定连接后断开，所以客户端和服务器可以保持连接通道，双方 都可以主动发送数据。一般在游戏开发或股票开发这种要求即时性很强并且保持发送数据量比较大的场合使用。主要使用类是CFSocketRef。
 
+## iOS中socket使用
+Socket是对TCP/IP协议的封装，Socket本身并不是协议，而是一个调用接口（API），通过Socket，我们才能使用TCP/IP协议。
+
+http协议 对应于应用层
+tcp协议 对应于传输层
+ip协议 对应于网络层
+三者本质上没有可比性。 何况HTTP协议是基于TCP连接的。
+
+TCP/IP是传输层协议，主要解决数据如何在网络中传输；而HTTP是应用层协议，主要解决如何包装数据。
+
+我 们在传输数据时，可以只使用传输层（TCP/IP），但是那样的话，由于没有应用层，便无法识别数据内容，如果想要使传输的数据有意义，则必须使用应用层 协议，应用层协议很多，有HTTP、FTP、TELNET等等，也可以自己定义应用层协议。WEB使用HTTP作传输层协议，以封装HTTP文本信息，然 后使用TCP/IP做传输层协议将它发送到网络上。
+
+**SOCKET原理**
+1. 套接字（socket）概念
+套接字（socket）是通信的基石，是支持TCP/IP协议的网络通信的基本操作单元。它是网络通信过程中端点的抽象表示，包含进行网络通信必须的五种信息：连接使用的协议，本地主机的IP地址，本地进程的协议端口，远地主机的IP地址，远地进程的协议端口。
+
+应 用层通过传输层进行数据通信时，TCP会遇到同时为多个应用程序进程提供并发服务的问题。多个TCP连接或多个应用程序进程可能需要通过同一个 TCP协议端口传输数据。为了区别不同的应用程序进程和连接，许多计算机操作系统为应用程序与TCP／IP协议交互提供了套接字(Socket)接口。应 用层可以和传输层通过Socket接口，区分来自不同应用程序进程或网络连接的通信，实现数据传输的并发服务。
+
+2. 建立socket连接
+建立Socket连接至少需要一对套接字，其中一个运行于客户端，称为ClientSocket，另一个运行于服务器端，称为ServerSocket。
+
+套接字之间的连接过程分为三个步骤：服务器监听，客户端请求，连接确认。
+
+服务器监听：服务器端套接字并不定位具体的客户端套接字，而是处于等待连接的状态，实时监控网络状态，等待客户端的连接请求。
+
+客户端请求：指客户端的套接字提出连接请求，要连接的目标是服务器端的套接字。为此，客户端的套接字必须首先描述它要连接的服务器的套接字，指出服务器端套接字的地址和端口号，然后就向服务器端套接字提出连接请求。
+
+连 接确认：当服务器端套接字监听到或者说接收到客户端套接字的连接请求时，就响应客户端套接字的请求，建立一个新的线程，把服务器端套接字的描述发给客户 端，一旦客户端确认了此描述，双方就正式建立连接。而服务器端套接字继续处于监听状态，继续接收其他客户端套接字的连接请求。
+
+3. SOCKET连接与TCP连接
+创建Socket连接时，可以指定使用的传输层协议，Socket可以支持不同的传输层协议（TCP或UDP），当使用TCP协议进行连接时，该Socket连接就是一个TCP连接。
+
+4. Socket连接与HTTP连接
+由 于通常情况下Socket连接就是TCP连接，因此Socket连接一旦建立，通信双方即可开始相互发送数据内容，直到双方连接断开。但在实际网络应用 中，客户端到服务器之间的通信往往需要穿越多个中间节点，例如路由器、网关、防火墙等，大部分防火墙默认会关闭长时间处于非活跃状态的连接而导致 Socket 连接断连，因此需要通过轮询告诉网络，该连接处于活跃状态。
+
+而HTTP连接使用的是“请求—响应”的方式，不仅在请求时需要先建立连接，而且需要客户端向服务器发出请求后，服务器端才能回复数据。
+
+很 多情况下，需要服务器端主动向客户端推送数据，保持客户端与服务器数据的实时与同步。此时若双方建立的是Socket连接，服务器就可以直接将数据传送给 客户端；若双方建立的是HTTP连接，则服务器需要等到客户端发送一次请求后才能将数据传回给客户端，因此，客户端定时向服务器端发送连接请求，不仅可以 保持在线，同时也是在“询问”服务器是否有新的数据，如果有就将数据传给客户端。
+
+[Socket使用简明教程－ AsyncSocket](http://my.oschina.net/joanfen/blog/287238)
+
 ### CFSocket使用有哪几个步骤。
 创建 Socket 的上下文；创建 Socket ；配置要访问的服务器信息；封装服务器信息；连接服务器；
 ### Core Foundation中提供了哪几种操作Socket的方法？
@@ -1919,3 +1960,289 @@ iOS_applicationDidBecomeActive
 系统常常是为其他app启动时由于内存不足而回收内存最后需要终止应用程序，但有时也会是由于app很长时间才响应而终止。如果app当时运行在后台并且没有暂停，系统会在应用程序终止之前调用app的代理的方法 - (void)applicationWillTerminate:(UIApplication *)application，这样可以让你可以做一些清理工作。你可以保存一些数据或app的状态。这个方法也有5秒钟的限制。超时后方法会返回程序从内存中清除。
 
 注意：用户可以手工关闭应用程序。
+
+## 远程推送
+当服务端远程向APNS推送至一台离线的设备时，苹果服务器Qos组件会自动保留一份最新的通知，等设备上线后，Qos将把推送发送到目标设备上
+
+远程推送的基本过程
+1. 客户端的app需要将用户的UDID和app的bundleID发送给apns服务器,进行注册,apns将加密后的device Token返回给app
+2. app获得device Token后,上传到公司服务器
+3. 当需要推送通知时,公司服务器会将推送内容和device Token一起发给apns服务器
+4. apns再将推送内容送到客户端上
+
+创建证书的流程：
+1. 打开钥匙串，生成CertificateSigningRequest.certSigningRequest文件
+2. 将CertificateSigningRequest.certSigningRequest上传进developer，导出.cer文件
+3. 利用CSR导出P12文件
+4. 需要准备下设备token值（无空格）
+5. 使用OpenSSL合成服务器所使用的推送证书
+
+本地app代码参考
+1.注册远程通知
+```objc
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions//中注册远程通知
+{
+[[UIApplication sharedApplication] registerForRemoteNotificationTypes:(UIRemoteNotificationTypeAlert | UIRemoteNotificationTypeBadge | UIRemoteNotificationTypeSound)];
+}
+```
+2. 实现几个代理方法：
+```objc
+//获取deviceToken令牌  
+-(void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken  
+{  
+//获取设备的deviceToken唯一编号  
+NSLog(@"deviceToken=%@",deviceToken);  
+NSString *realDeviceToken=[NSString stringWithFormat:@"%@",deviceToken];  
+//去除<>  
+realDeviceToken = [realDeviceToken stringByReplacingOccurrencesOfString:@"<" withString:@""];  
+realDeviceToken = [realDeviceToken stringByReplacingOccurrencesOfString:@">" withString:@""];  
+NSLog(@"realDeviceToken=%@",realDeviceToken);  
+[[NSUserDefaults standardUserDefaults] setValue:realDeviceToken forKey:@"DeviceToken"];  //要发送给服务器
+}  
+
+ //获取令牌出错  
+-(void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error  
+{  
+//注册远程通知设备出错  
+NSLog(@"RegisterForRemoteNotification error=%@",error);  
+}  
+//在应用在前台时受到消息调用  
+-(void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo  
+{  
+ //打印推送的消息  
+NSLog(@"%@",[[userInfo objectForKey:@"aps"] objectForKey:@"alert"]):  
+}
+```
+一般我们是使用开发版本的Provisioning做推送测试,如果没有问题,再使用发布版本证书的时候一般也应该是没有问题的。为了以防万一,我们可以在越狱的手机上安装我们的使用发布版证书的ipa文件(最好使用debug版本,并打印出获取到的deviceToken),安装成功后在;XCode->Window->Organizer-找到对应的设备查看console找到打印的deviceToken。
+
+在后台的推送程序中使用发布版制作的证书并使用该deviceToken做推送服务.
+使用开发和发布证书获取到的deviceToken是不一样的。
+
+## 支付宝SDK使用
+使用支付宝进行一个完整的支付功能，大致有以下步骤：向支付宝申请, 与支付宝签约，获得商户ID（partner）和账号ID（seller）和私钥(privateKey)。下载支付宝SDK，生成订单信息,签名加密调用支付宝客户端，由支付宝客户端跟支付宝安全服务器打交道。支付完毕后,支付宝客户端会自动跳回到原来的应用程序，在原来的应用程序中显示支付结果给用户看。
+**集成之后可能遇到的问题**
+1. 集成SDK编译时找不到 openssl/asn1.h 文件
+解决方案：Build Settings --> Search Paths --> Header Search paths : $(SRCROOT)/支付宝集成/Classes/Alipay
+2. 链接时：找不到 SystemConfiguration.framework 这个库
+解决方案：打开支付宝客户端进行支付(用户没有安装支付宝客户端,直接在应用程序中添加一个WebView,通过网页让用户进行支付)
+// 注意:如果是通过网页支付完成,那么会回调该block:callback
+```objc
+ [[AlipaySDK defaultService] payOrder:orderString fromScheme:@"jingdong" callback:^(NSDictionary *resultDic) { }];
+```
+在AppDelegate.m
+```objc
+// 当通过别的应用程序,将该应用程序打开时,会调用该方法
+- (BOOL)application:(UIApplication *)app openURL:(NSURL *)url options:(NSDictionary<NSString *,id> *)options{ // 当用户通过支付宝客户端进行支付时,会回调该block:standbyCallback
+[[AlipaySDK defaultService] processOrderWithPaymentResult:url standbyCallback:^(NSDictionary *resultDic) { NSLog(@"result = %@",resultDic); }]; return YES;}
+```
+## iOS的锁屏和解锁
+
+**idleTimer**
+idleTimer 是iOS内置的时间监测机制，当在一段时间内未操作即进入锁屏状态。但有些应用程序是不需要锁住屏幕的，比如游戏，视频这类应用。 可以通过设置UIApplication的idleTimerDisabled属性来指定iOS是否锁屏。
+```objc
+// 禁用休闲时钟
+[[UIApplication sharedApplication] setIdleTimerDisabled: YES];
+```
+也可以使用这种语法
+```objc
+[UIApplication sharedApplication].idleTimerDisabled = YES;
+```
+但是，这个命令只能禁用自动锁屏，如果点击了锁屏按钮，仍然会进入锁屏的。有一点例外的是，AVPlayer不用设置idleTimerDisabled=YES，也能屏幕常亮，播放完成后过一分钟就自动关闭屏幕。有兴趣的可以自己尝试一下。
+
+**锁屏和解锁通知**
+iPhone的锁屏监测分为两种方式监听：一种是程序在前台，另一种程序在后台。 程序在前台，这种比较简单。直接使用Darwin层的通知就可以了：
+> Darwin是由苹果电脑于2000年所释出的一个开放原始码操作系统。Darwin 是MacOSX 操作环境的操作系统成份。苹果电脑于2000年把Darwin 释出给开放原始码社群。现在的Darwin皆可以在苹果电脑的PowerPC 架构和X86 架构下执行，而后者的架构只有有限的驱动程序支援。
+
+```objc
+#import <notify.h>
+#define NotificationLock CFSTR("com.apple.springboard.lockcomplete")
+#define NotificationChange CFSTR("com.apple.springboard.lockstate")
+#define NotificationPwdUI CFSTR("com.apple.springboard.hasBlankedScreen")
+
+static void screenLockStateChanged(CFNotificationCenterRef center,void* observer,CFStringRef name,const void* object,CFDictionaryRef userInfo)
+{
+NSString* lockstate = (__bridge NSString*)name;
+if ([lockstate isEqualToString:(__bridge  NSString*)NotificationLock]) {
+    NSLog(@"locked.");
+} else {
+    NSLog(@"lock state changed.");
+}
+}
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
+{
+CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, screenLockStateChanged, NotificationLock, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, screenLockStateChanged, NotificationChange, NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+return YES;
+}
+```
+notify.h的具体内容可以移步开发文档。这种方法，程序在前台是可以拿到的，在后台情况下就无能为力了。
+
+第二种是程序退后台后，这时再锁屏就收不到上面的那个通知了，需要另外一种方式, 以循环的方式一直来检测是否是锁屏状态，会消耗性能并可能被苹果挂起，需要合理设置循环时间。
+```objc
+static void setScreenStateCb()
+{
+uint64_t locked;
+
+__block int token = 0;
+notify_register_dispatch("com.apple.springboard.lockstate",&token,dispatch_get_main_queue(),^(int t){
+});
+notify_get_state(token, &locked);
+NSLog(@"%d",(int)locked);
+}
+
+- (void)applicationDidEnterBackground:(UIApplication *)application
+{
+while (YES) {
+    setScreenStateCb();
+    sleep(5); // 循环5s
+}
+}
+
+```
+
+**UIApplication**
+上面我们使用了UIApplication的IdleTimerDisabled方法，下面就大概了解下UIApplication吧。
+
+UIApplication，每个程序只能有一个，系统使用的是单例模式，用[UIApplication sharedApplication]来得到一个实例。这个单例实例是在系统启动时由main函数里面的UIApplicationMain方法生成，实现的是UIApplicationDelegate的Protocol，也就是AppDelegate的一个实例。每次通过[UIApplication sharedApplication]调用的就是它。UIApplication保存一个UIWindow对象序列，用来快速恢复views。
+
+UIApplication在程序里的作用很多，大致如下所示：
+```objc
+一、远程提醒，就是push notification注册；
+二、可以连接到UIUndoManager；在Cocoa中使用NSUndoManager可以很方便的完成撤销操作。NSUndoManager会记录下修改、撤销操作的消息。这个机制使用两个NSInvocation对象栈。当进行操作时，控制器会添加一个该操作的逆操作的invocation到Undo栈中。当进行Undo操作时，Undo操作的逆操作会倍添加到Redo栈中，就这样利用Undo和Redo两个堆栈巧妙的实现撤销操作。需要注意的是，堆栈中存放的都是NSInvocation实例。
+三、检查能否打开某个URL，并且打开URL；这个功能可以配合应用的自定义URL功能，来检测是否安装了某个应用。使用的是[[UIApplication sharedApplication] canOpenURL:url]方法。如果返回YES，可执行[[UIApplication sharedApplication] openURL:url];
+四、注册Local Notification；
+五、在后台运行以及从后台转为前台时的操作；
+六、防止屏幕睡眠：即上面的[[UIApplication sharedApplication] setIdleTimerDisabled: YES];
+七、手动调整status bar的位置和状态，如设置为竖屏、横屏等；
+八、设置badge number，就是图标右上角的数字；
+九、每当应用联网时，在状态栏上会显示联网小菊花。UIApplication可以设置是否出现。
+UIApplication *app = [UIApplication sharedApplication];
+app.networkActivityIndicatorVisible =!app.networkActivityIndicatorVisible;//转动
+app.networkActivityIndicatorVisible = app.networkActivityIndicatorVisible;//不转动
+```
+UIUndoManager示例
+```objc
+- (void) one
+{
+position = position + 10;
+[[undoManager prepareWithInvocationTarget:self] two];
+[self showTheChangesToThePostion];
+}
+
+- (void) two
+{
+position = position - 10;
+[[undoManager prepareWithInvocationTarget:self] one];
+[self showTheChangesToThePostion];
+}
+```
+prepareWithInvocationTarget:方法记录了target并返回UndoManager，然后UndoManager重载了forwardInvocation方法，也就将two方法的Invocation添加到undo栈中了。
+
+## 什么是OC
+OC语言在c语言的基础上，增加了一层最小的面向对象语法，完全兼容C语言，在OC代码中，可以混用c，甚至是c++代码。可以使用OC开发mac osx平台和iOS平台的应用程序。拓展名：c语言.c OC语言.m 兼容C++.mm。
+
+为了与c语言的关键字区分开来,基本上所有的关键字都是以@开头。基本类型：5种，增加了布尔类型，BOOL类型与其他类型的用法一致，BOOL类型的本质是char类型的，定义如下：
+```objc
+ Typedef signed char BOOL
+```
+宏定义:
+```objc
+#define YES  (BOOL)1
+#define NO   (BOOL)0
+```
+布尔类型的输出一般当做整数来用。
+程序编译连接过程为：源文件（.m）---(编译)---->目标文件（.0）-----（链接）---->可执行文件（.out）。
+
+每个对象内部都默认有一个isa指针指向这个对象所使用的类。isa是对象中的隐藏指针，指向创建这个对象的类。OC做为一门面向对象语言，具有面向对象的语言特性，如封装、继承、多态。也具有静态语言的特性(如C++)，又有动态语言的效率(动态绑定、动态加载等)。
+
+Apple公司领导着Objective-C语言的发展与维护，包括Objective-C运行时，Cocoa/Cocoa-Touch框架以及Objective-C语言的编译器。
+
+## 什么是面向对象
+OC语言是面向对象的，c语言是面向过程的，面向对象和面向过程只是解决问题的两种思考方式，面向过程关注的是解决问题涉及的步骤，面向对象关注的是设计能够实现解决问题所需功能的类。
+
+面向对象的编程方法具有四个基本特征：抽象，封装，继承和多态。
+
+抽象是忽略一个主题中与当前目标无关的那些方面，以便更充分地注意与当前目标有关的方面。抽象包括两个方面，一是过程抽象，二是数据抽象。过程抽象是指任何一个明确定义功能的操作都可被使用者看作单个的实体看待，尽管这个操作实际上可能由一系列更低级的操作来完成。数据抽象定义了数据类型和施加于该类型对象上的操作，并限定了对象的值只能通过使用这些操作修改和观察。
+
+继承是一种联结类的层次模型，并且允许和鼓励类的重用，它提供了一种明确表述共性的方法。新类继承了原始类的特性，新类称为原始类的派生类（子类），而原始类称为新类的基类（父类）。派生类可以从它的基类那里继承方法和实例变量，并且类可以修改或增加新的方法使之更适合特殊的需要。继承性很好的解决了软件的可重用性问题。
+
+封装是把过程和数据包围起来，对数据的访问只能通过已定义的界面。面向对象计算始于这个基本概念，即现实世界可以被描绘成一系列完全自治、封装的对象，这些对象通过一个受保护的接口访问其他对象。一旦定义了一个对象的特性，则有必要决定这些特性的可见性，封装保证了模块具有较好的独立性，使得程序维护修改较为容易。对应用程序的修改仅限于类的内部，因而可以将应用程序修改带来的影响减少到最低限度。
+
+多态性是指允许不同类的对象对同一消息作出响应。多态性包括参数化多态性和包含多态性。多态性语言具有灵活、抽象、行为共享、代码共享的优势，很好的解决了应用程序函数同名问题。**多态是依赖于接口的**。
+
+但是，在C++使用OOP的编程方式在一些场合未能提供最高性能。现在内存存取成为计算机性能的重要瓶颈，这个问题在C++设计OOP编程范式的实现方式之初并未能考虑周全。现时的OOP编程有可能不缓存友好（cache friendly），导致有时候并不能发挥硬件最佳性能。大概就是过度封装，多态增加cache miss的可能性，数据存取时导致载入缓存的浪费等。
+
+## OC和传统的面向对象语言有什么区别和优势
+OC中方法的实现只能写在@implementation··@end中，对象方法的声明只能写在@interface···@end中间；对象方法都以-号开头，类方法都以+号开头；对象方法只能由对象来调用，类方法只能由类来调用，不能当做函数一样调用。函数属于整个文件，可以写在文件中的任何位置，包括@implementation··@end中，但写在@interface···@end会无法识别，函数的声明可以在main函数内部也可以在main函数外部。对象方法归类\对象所有；函数调用不依赖于对象；函数内部不能直接通过成员变量名访问对象的成员变量。
+
+Objective-C的运行时是动态的，它能让你在运行时为类添加方法或者去除方法以及使用反射。 OC的动态特性表现为了三个方面：动态类型、动态绑定、动态加载。之所以叫做动态，是因为必须到运行时(run time)才会做一些事情。
+
+动态类型，说简单点就是id类型。动态类型是跟静态类型相对的。像内置的明确的基本类型都属于静态类型(int、NSString等)。静态类型在编译的时候就能被识别出来。所以，若程序发生了类型不对应，编译器就会发出警告。而动态类型就编译器编译的时候是不能被识别的，要等到运行时(run time)，即程序运行的时候才会根据语境来识别。所以这里面就有两个概念要分清：编译时跟运行时。
+
+动态绑定(dynamic binding)需要用到@selector/SEL。先来看看“函数”，对于其他一些静态语言，比如c++,一般在编译的时候就已经将要调用的函数的函数签名都告诉编译器了。静态的，不能改变。而在OC中，其实是没有函数的概念的，我们叫“消息机制”，所谓的函数调用就是给对象发送一条消息。这时，动态绑定的特性就来了。OC可以先跳过编译，到运行的时候才动态地添加函数调用，在运行时才决定要调用什么方法，需要传什么参数进去。这就是动态绑定，要实现他就必须用SEL变量绑定一个方法。最终形成的这个SEL变量就代表一个方法的引用。这里要注意一点：**SEL并不是C里面的函数指针**，虽然很像，但真心不是函数指针。SEL变量只是一个整数，他是该方法的ID。以前的函数调用，是根据函数名，也就是字符串去查找函数体。但现在，我们是根据一个ID整数来查找方法，整数的查找字自然要比字符串的查找快得多！所以，动态绑定的特定不仅方便，而且效率更高。
+
+动态加载就是根据需求动态地加载资源，在运行时加载新类。在运行时创建一个新类,只需要3步:
+1. 为 class pair分配存储空间 ,使用 objc_allocateClassPair函数
+2. 增加需要的方法使用class_addMethod函数,增加实例变量用class_addIvar
+3. 用objc_registerClassPair函数注册这个类,以便它能被别人使用。
+
+>使用这些函数请引#import <objc/runtime.h>
+
+## HTTP协议及HTTPS，能否保持长连接等
+HTTP协议是客户端最常用到的协议了，HTTP连接使用的是“请求—响应”的方式，不仅在请求时需要先建立连接，而且需要客户端向服务器发出请求后，服务器端才能回复数据。HTTPS是以安全为目标的HTTP通道，是HTTP的安全版。 在HTTP下加入SSL层。 HTTPS存在不同于HTTP的默认端口及一个加密/身份验证层（在HTTP与TCP之间）。HTTP协议以明文方式发送内容，不提供任何方式的数据加密，如果攻击者截取了Web浏览器和网站服务器之间的传输报文，就可以直接读懂其中的信息，因此HTTP协议不适合传输一些敏感信息。http的连接很简单，是无状态的，HTTPS协议是由SSL+HTTP协议构建的可进行加密传输、身份认证的网络协议。
+
+Request和Response的格式：
+```
+// 请求
+GET / HTTP/1.1
+
+Host:xxx.xxxx.com
+
+User-Agent: Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US; rv:1.9.0.10) Gecko/2016042316 Firefox/3.0.10
+
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+
+Accept-Language: en-us,en;q=0.5
+
+Accept-Encoding: gzip,deflate
+
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+
+Keep-Alive: 300
+
+Connection: keep-alive
+
+If-Modified-Since: Mon, 25 May 2016 03:19:18 GMT
+
+
+//响应
+HTTP/1.1 200 OK
+
+Cache-Control: private, max-age=30
+
+Content-Type: text/html; charset=utf-8
+
+Content-Encoding: gzip
+
+Expires: Mon, 25 May 2016 03:20:33 GMT
+
+Last-Modified: Mon, 25 May 2016 03:20:03 GMT
+
+Vary: Accept-Encoding
+
+Server: Microsoft-IIS/7.0
+
+X-AspNet-Version: 2.0.50727
+
+X-Powered-By: ASP.NET
+
+Date: Mon, 25 May 2016 03:20:02 GMT
+
+Content-Length: 12173
+
+消息体的内容（略）
+```
+HTTP/1.1的默认模式使用带流水线的持久连接。这种情况下，HTTP客户每碰到一个引用就立即发出一个请求，因而HTTP客户可以一个接一个紧挨着发出各个引用对象的请求。服务器收到这些请求后，也可以一个接一个紧挨着发出各个对象。如果所有的请求和响应都是紧挨着发送的，那么所有引用到的对象一共只经历1个RTT的延迟(而不是像不带流水线的版本那样，每个引用到的对象都各有1个RTT的延迟)。另外，带流水线的持久连接中服务器空等请求的时间比较少。与非持久连接相比，持久连接(不论是否带流水线)除降低了1个RTT的响应延迟外，缓启动延迟也比较小。其原因在于既然各个对象使用同一个TCP连接，服务器发出第一个对象后就不必再以一开始的缓慢速率发送后续对象。相反，服务器可以按照第一个对象发送完毕时的速率开始发送下一个对象。
+
+参考书目：《HTTP权威指南》
