@@ -70,6 +70,8 @@ initialization for the class and for categories of the class, you should impleme
 - load方法没有自动释放池，如果做数据处理，需要释放内存，则开发者得自己添加autoreleasepool来管理内存的释放。
 - 和load不同，即使子类不实现initialize方法，也会把父类的实现继承过来调用一遍。注意的是在此之前，
 父类的方法已经被执行过一次了，同样不需要super调用。
+## Fast Enumeration 的实现原理
+[Objective-C Fast Enumeration 的实现原理](http://blog.leichunfeng.com/blog/2016/06/20/objective-c-fast-enumeration-implementation-principle/)
 
 ## 在使用GCD以及block时要注意些什么？它们两是一回事儿么？block在ARC中和传统的MRC中的行为和用法有没有什么区别，需要注意些什么？
 https://onevcat.com/2014/03/common-background-practices/
