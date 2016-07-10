@@ -305,3 +305,13 @@ TCP关闭连接之所以需要四次握手，是因为TCP连接是全双工，�
 188888823400
 ```
 > 用predicate正则
+
+## 什么是Binary search tree? search的时间复杂度是多少？
+Binary search tree:二叉搜索树。
+主要由四个方法：（用C语言实现或者Python）
+1. search：时间复杂度为O(h)，h为树的高度
+2. traversal：时间复杂度为O(n)，n为树的总结点数。
+3. insert：时间复杂度为O(h)，h为树的高度。
+4. delete：最坏情况下，时间复杂度为O(h)+指针的移动开销。
+
+可以看到，二叉搜索树的dictionary operation的时间复杂度与树的高度h相关。所以需要尽可能的降低树的高度，由此引出平衡二叉树Balanced binary tree。它要求左右两个子树的高度差的绝对值不超过1，并且左右两个子树都是一棵平衡二叉树。这样就可以将搜索树的高度尽量减小。常用算法有红黑树、AVL、Treap、伸展树等。

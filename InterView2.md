@@ -51,6 +51,72 @@ initialize is invoked **only once per class**. If you want to perform independen
 - load方法没有自动释放池，如果做数据处理，需要释放内存，则开发者得自己添加autoreleasepool来管理内存的释放。
 - 和load不同，即使子类不实现initialize方法，也会把父类的实现继承过来调用一遍。注意的是在此之前，父类的方法已经被执行过一次了，同样不需要super调用。
 
+## 在使用GCD以及block时要注意些什么？它们两是一回事儿么？block在ARC中和传统的MRC中的行为和用法有没有什么区别，需要注意些什么？
+https://onevcat.com/2014/03/common-background-practices/
+
+https://onevcat.com/2011/11/objc-block/
+
+https://onevcat.com/2012/06/arc-hand-by-hand/
+
+## GCD里面有哪几种Queue？你自己建立过串行queue吗？背后的线程模型是什么样的？
+1.主队列 dispatch_main_queue(); 串行 ，更新UI
+2.全局队列 dispatch_global_queue(); 并行，四个优先级：background，low，default，high
+3.自定义队列 dispatch_queue_t queue ; 可以自定义是并行：DISPATCH_QUEUE_CONCURRENT或者串行DISPATCH_QUEUE_SERIAL
+
+## GCD实现1，2并行和3串行和45串行，4，5是并行。即3依赖1，2的执行，45依赖3的执行。
+**队列组的方式**
+```objc
+- (void) methodone{
+dispatch_group_t group = dispatch_group_create();
+
+dispatch_group_async(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    NSLog(@"%d",1);
+});
+
+dispatch_group_async(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+    NSLog(@"%d",2);
+});
+
+dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+    NSLog(@"3");
+
+    dispatch_group_t group1 = dispatch_group_create();
+
+    dispatch_group_async(group1, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSLog(@"%d",4);
+    });
+
+    dispatch_group_async(group1, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSLog(@"%d",5);
+    });
+
+});
+
+}
+```
+串行队列：队列中的任务只会顺序执行
+```objc
+dispatch_queue_t q = dispatch_queue_create(“....”, dispatch_queue_serial);
+```
+并行队列： 队列中的任务通常会并发执行。 　
+```objc
+dispatch_queue_t q = dispatch_queue_create("......", dispatch_queue_concurrent);  
+```
+全局队列：是系统开发的，直接拿过来用就可以；与并行队列类似，但调试时，无法确认操作所在队列。
+```objc
+dispatch_queue_t q = dispatch_get_global_queue(dispatch_queue_priority_default, 0);
+```
+主队列：每一个应用开发程序对应唯一一个主队列，直接get即可；在多线程开发中，使用主队列更新UI。
+```objc
+dispatch_queue_t q = dispatch_get_main_queue();
+```
+主队列是GCD自带的串行队列，会在主线程中执行。异步全局并发队列 开启新线程，并发执行。
+并行队列里开启同步任务是有执行顺序的，只有异步才没有顺序。
+串行队列开启异步任务，是有顺序的。
+串行队列开启异步任务后嵌套同步任务造成死锁。
+
+
+
 ## 对block的理解
 
 Block分为三种，分别是全局block、栈block和堆block。ARC之后，我们并不需要手动copy到堆上，通常都已经交给编译器来完成。
@@ -82,6 +148,21 @@ dispatch_block_t?block);
 通过queue来控制block执行的线程。主线程执行前文定义的 finishBlock对象
 
 dispatch_async(dispatch_get_main_queue(),^(void){finishBlock();});
+
+## __block在arc和非arc下含义一样吗？
+
+是不一样的。
+在MRC中__block variable在block中使用是不会retain的
+但是ARC中__block则会Retain。
+取而代之的是用__weak或是__unsafe_unretained來更精确的描述weak reference的目的
+其中前者只能在iOS5之后可以使用，但是比较好 (该对象release之后，此pointer会自动设成成nil)
+而后者是ARC的环境下为了兼容4.x的解決方案。
+```objc
+__block MyClass* temp = …;    // MRC环境下使用
+__weak MyClass* temp = …;    // ARC但只支援iOS5.0以上的版本
+__unsafe_retained MyClass* temp = …;  //ARC且可以兼容4.x以后的版本
+
+```
 
 ##  block 实现原理
 Objective-C是对C语言的扩展，block的实现是基于指针和函数指针。
@@ -182,6 +263,21 @@ return new SampleB();
 
 如果列表比较复杂，对于上面的做好后，还是不够流畅，就需要通过Instruments工具来检测哪些地方可以优化了。
 
+## 用Instrument优化动画性能的经历
+[iOS App性能优化](http://www.hrchen.com/2013/05/performance-with-instruments/)
+
+1. Separate by Thread: 每个线程应该分开考虑。只有这样你才能揪出那些大量占用CPU的"重"线程。
+2. Invert Call Tree: 从上倒下跟踪堆栈,这意味着你看到的表中的方法,将已从第0帧开始取样,这通常你是想要的,只有这样你才能看到CPU中话费时间最深的方法.也就是说FuncA{FunB{FunC}} 勾选此项后堆栈以C->B-A 把调用层级最深的C显示在最外面。
+3. Hide System Libraries: 勾选此项你会显示你app的代码,这是非常有用的. 因为通常你只关心cpu花在自己代码上的时间不是系统上的。
+4. Flatten Recursion: 递归函数, 每个堆栈跟踪一个条目。
+5. Top Functions: 一个函数花费的时间直接在该函数中的总和，以及在函数调用该函数所花费的时间的总时间。因此，如果函数A调用B，那么A的时间报告在A花费的时间加上B.花费的时间,这非常真有用，因为它可以让你每次下到调用堆栈时挑最大的时间数字，归零在你最耗时的方法。
+
+内存泄漏有两种泄漏。第一个是真正的内存泄漏，一个对象尚未被释放，但是不再被引用的了。因此，存储器不能被重新使用。第二类泄漏是比较麻烦一些。这就是所谓的“无界内存增长”。这发生在内存继续分配，并永远不会有机会被释放。如果永远这样下去你的程序占用的内存会无限大,当超过一定内存的话 会被系统的看门狗给kill掉。
+
+内存警告是ios处理app最好的方式，尤其是在内存越来越吃紧的时候,你需要清除一些内存。内存一直增长其实也不一定是你的代码出了问题,也有可能是UIKit 系统框架本身导致的。
+
+**内存泄露**
+这一类泄漏是前面提到的 - 当一个对象不再被引用时出现的那种,检测泄漏可以理解为一个很复杂的事情，但泄漏的工具记得已分配的所有对象，通过定期扫描每个对象以确定是否有任何不能从任何其他对象访问的。
 ## 对ARC的理解
 
 ARC是编译器帮我们完成的，我们不再手动添加retain、relase、autorelease，而且在运行期还会帮助我们优化。但是ARC并不是万能的，它并不能自我理解循环引用问题，依然需要我们手动解决循环引用的问题。
@@ -251,6 +347,13 @@ Objective-C的内存管理主要有三种方式ARC(自动内存计数)、手动�
 3. (NSAutoRealeasePool)内存池：可以通过创建和释放内存池控制内存申请和回收的时机.
 
 解决:是由autorelease加入系统内存池, 内存池是可以嵌套的, 每个内存池都需要有一个创建释放对, 就像main函数中写的一样. 使用也很简单, 比如[[[NSString alloc]initialWithFormat:@”Hey you!”] autorelease], 即将一个NSString对象加入到最内层的系统内存池, 当我们释放这个内存池时, 其中的对象都会被释放.
+
+## 使用nonatomic一定是线程安全的吗？
+不是的。
+atomic原子操作，系统会为setter方法加锁。 具体使用 @synchronized(self){//code }
+nonatomic不会为setter方法加锁。
+atomic：线程安全，需要消耗大量系统资源来为属性加锁
+nonatomic：非线程安全，适合内存较小的移动设备
 
 ## 原子(atomic)跟非原子(non-atomic)属性有什么区别?
 1. atomic提供多线程安全。是防止在写未完成的时候被另外一个线程读取，造成数据错误
@@ -734,6 +837,25 @@ POST 方法提交的数据大小没有限制
 
 POST 方法可以设置书签
 
+1. GET请求的数据会附在URL之后（就是把数据放置在HTTP协议头中），以?分割URL和传输数据，参数之间以&相连，如：login.action?name=hyddd&password=idontknow&verify=%E4%BD%A0%E5%A5%BD。如果数据是英文字母/数字，原样发送，如果是空格，转换为+，如果是中文/其他字符，则直接把字符串用BASE64加密，得出如：%E4%BD%A0%E5%A5%BD，其中％XX中的XX为该符号以16进制表示的ASCII。
+　　POST把提交的数据则放置在是HTTP包的包体中。
+
+2. ”GET方式提交的数据最多只能是1024字节，理论上POST没有限制，可传较大量的数据，IIS4中最大为80KB，IIS5中为100KB”？？！
+
+　　以上这句是我从其他文章转过来的，其实这样说是错误的，不准确的：
+
+　　(1).首先是”GET方式提交的数据最多只能是1024字节”，因为GET是通过URL提交数据，那么GET可提交的数据量就跟URL的长度有直接关系了。而实际上，URL不存在参数上限的问题，HTTP协议规范没有对URL长度进行限制。这个限制是特定的浏览器及服务器对它的限制。IE对URL长度的限制是2083字节(2K+35)。对于其他浏览器，如Netscape、FireFox等，理论上没有长度限制，其限制取决于操作系统的支持。
+
+　　注意这是限制是整个URL长度，而不仅仅是你的参数值数据长度。[见参考资料5]
+
+　　(2).理论上讲，POST是没有大小限制的，HTTP协议规范也没有进行大小限制，说“POST数据量存在80K/100K的大小限制”是不准确的，POST数据是没有限制的，起限制作用的是服务器的处理程序的处理能力。
+
+3.在ASP中，服务端获取GET请求参数用Request.QueryString，获取POST请求参数用Request.Form。在JSP中，用request.getParameter(\”XXXX\”)来获取，虽然jsp中也有request.getQueryString()方法，但使用起来比较麻烦，比如：传一个test.jsp?name=hyddd&password=hyddd，用request.getQueryString()得到的是：name=hyddd&password=hyddd。在PHP中，可以用GET和_POST分别获取GET和POST中的数据，而REQUEST则可以获取GET和POST两种请求中的数据。值得注意的是，JSP中使用request和PHP中使用_REQUEST都会有隐患，这个下次再写个文章总结。
+
+4.POST的安全性要比GET的安全性高。注意：这里所说的安全性和上面GET提到的“安全”不是同个概念。上面“安全”的含义仅仅是不作数据修改，而这里安全的含义是真正的Security的含义，比如：通过GET提交数据，用户名和密码将明文出现在URL上，因为(1)登录页面有可能被浏览器缓存，(2)其他人查看浏览器的历史纪录，那么别人就可以拿到你的账号和密码了，除此之外，使用GET提交数据还可能会造成Cross-site request forgery攻击。
+
+总结一下，Get是向服务器发索取数据的一种请求，而Post是向服务器提交数据的一种请求，在FORM（表单）中，Method默认为”GET”，实质上，GET和POST只是发送机制不同，并不是一个取一个发！
+
 ## TCP和UDP的区别
 TCP全称是Transmission Control Protocol，中文名为传输控制协议，它可以提供可靠的、面向连接的网络数据传递服务。传输控制协议主要包含下列任务和功能：
 
@@ -820,6 +942,35 @@ File’s Owner 是所有 nib 文件中的每个图标，它表示从磁盘加载
 First Responder 就是用户当前正在与之交互的对象；
 
 View 显示用户界面；完成用户交互；是 UIView 类或其子类。
+## 如何高性能的给UIImageView加个圆角？（不准说layer.cornerRadius!）
+我觉得应该是使用Quartz2D直接绘制图片,得把这个看看。
+步骤：
+1. 创建目标大小(cropWidth，cropHeight)的画布。
+2. 使用UIImage的drawInRect方法进行绘制的时候，指定rect为(-x，-y，width，height)。
+3. 从画布中得到裁剪后的图像。
+
+```objc
+- (UIImage*)cropImageWithRect:(CGRect)cropRect
+{
+    CGRect drawRect = CGRectMake(-cropRect.origin.x , -cropRect.origin.y, self.size.width * self.scale, self.size.height * self.scale);
+
+    UIGraphicsBeginImageContext(cropRect.size);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    CGContextClearRect(context, CGRectMake(0, 0, cropRect.size.width, cropRect.size.height));
+
+    [self drawInRect:drawRect];
+
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+
+    return image;
+}
+
+@end
+```
+
+## 使用drawRect有什么影响？（这个可深可浅，你至少得用过。。）
+drawRect方法依赖Core Graphics框架来进行自定义的绘制，但这种方法主要的缺点就是它处理touch事件的方式：每次按钮被点击后，都会用setNeddsDisplay进行强制重绘；而且不止一次，每次单点事件触发两次执行。这样的话从性能的角度来说，对CPU和内存来说都是欠佳的。特别是如果在我们的界面上有多个这样的UIButton实例。
 
 ## 简述视图控件器的生命周期。
 loadView 尽管不直接调用该方法，如多手动创建自己的视图，那么应该覆盖这个方法并将它们赋值给试图控制器的 view 属性。
@@ -839,13 +990,32 @@ viewDidAppear 当视图添加到窗口中以后或者上层视图移出图层后
 Cocoa Touch 提供了 4 种 Core Animation 过渡类型，分别为：交叉淡化、推挤、显示和覆盖。
 
 ## UIView与CLayer有什么区别？
-1).UIView 是 iOS 系统中界面元素的基础，所有的界面元素都是继承自它。它本身完全是由 CoreAnimation 来实现的。它真正的绘图部分，是由一个 CALayer 类来管理。 UIView 本身更像是一个 CALayer 的管理器，访问它的跟绘图和跟坐标有关的属性。
+1).UIView是iOS系统中界面元素的基础，所有的界面元素都继承自它。它本身完全是由CoreAnimation来实现的 （Mac下似乎不是这样）。它真正的绘图部分，是由一个叫CALayer（Core Animation Layer）的类来管理。 UIView本身，更像是一个CALayer的管理器，访问它的跟绘图和跟坐标有关的属性，例如frame，bounds等 等，实际上内部都是在访问它所包含的CALayer的相关属性。
 
-2).UIView 有个重要属性 layer ，可以返回它的主 CALayer 实例。
+2).UIView有个layer属性，可以返回它的主CALayer实例，UIView有一个layerClass方法，返回主layer所使用的 类，UIView的子类，可以通过重载这个方法，来让UIView使用不同的CALayer来显示，例如通过
+```objc
+- (class) layerClass {
+
+         return ([CAEAGLLayer class]);
+    }
+```
+使某个UIView的子类使用GL来进行绘制。
 
 3).UIView 的 CALayer 类似 UIView 的子 View 树形结构，也可以向它的 layer 上添加子layer ，来完成某些特殊的表示。即 CALayer 层是可以嵌套的。
+```objc
+grayCover = [[CALayer alloc] init];
 
-4).UIView 的 layer 树形在系统内部，被维护着三份 copy 。分别是逻辑树，这里是代码可以操纵的；动画树，是一个中间层，系统就在这一层上更改属性，进行各种渲染操作；显示树，其内容就是当前正被显示在屏幕上得内容。
+    grayCover.backgroundColor = [[[UIColor blackColor] colorWithAlphaComponent:0.2] CGColor];
+
+    [self.layer addSubLayer: grayCover];
+```
+在目标View上敷上一层黑色的透明薄膜。
+4).UIView 的 layer 树形在系统内部，被维护着三份 copy 。
+- 逻辑树，这里是代码可以操纵的；
+- 动画树，是一个中间层，系统就在这一层上更改属性，进行各种渲染操作；
+- 显示树，其内容就是当前正被显示在屏幕上得内容。
+
+这三棵树的逻辑结构都是一样的，区别只有各自的属性。
 
 5).动画的运作：对 UIView 的 subLayer （非主 Layer ）属性进行更改，系统将自动进行动画生成，动画持续时间的缺省值似乎是 0.5 秒。
 
@@ -867,3 +1037,414 @@ Cocoa Touch 提供了 4 种 Core Animation 过渡类型，分别为：交叉淡�
 
 ## tableView 的重用机制
 UITableView 通过重用单元格来达到节省内存的目的: 通过为每个单元格指定一个重用标识符(reuseIdentifier),即指定了单元格的种类,以及当单元格滚出屏幕时,允许恢复单元格以便重用.对于不同种类的单元格使用不同的ID,对于简单的表格,一个标识符就够了.
+
+## 描述一个你遇到过的retain cycle例子
+block中的循环引用：一个viewController
+```objc
+@property (nonatomic,strong)HttpRequestHandler * handler;
+   @property (nonatomic,strong)NSData          *data;
+   _handler = [httpRequestHandler sharedManager];
+   [ downloadData:^(id responseData){
+       _data = responseData;
+   }];
+```
+
+self 拥有_handler, _handler 拥有block, block拥有self（因为使用了self的_data属性，block会copy 一份self）
+解决方法：
+```objc
+__weak typedof(self)weakSelf = self
+    [ downloadData:^(id responseData){
+        weakSelf.data = responseData;
+    }];
+```
+
+## 为什么其他语言里叫函数调用， objective c里则是给对象发消息（或者谈下对runtime的理解）
+先来看看怎么理解发送消息的含义：
+
+曾经觉得Objc特别方便上手，面对着 Cocoa 中大量 API，只知道简单的查文档和调用。还记得初学 Objective-C 时把[receiver message]当成简单的方法调用，而无视了“发送消息”这句话的深刻含义。于是[receiver message]会被编译器转化为：
+objc_msgSend(receiver, selector)
+如果消息含有参数，则为：
+`objc_msgSend(receiver, selector, arg1, arg2, ...)`
+
+如果消息的接收者能够找到对应的selector，那么就相当于直接执行了接收者这个对象的特定方法；否则，消息要么被转发，或是临时向接收者动态添加这个selector对应的实现内容，要么就干脆玩完崩溃掉。
+
+现在可以看出[receiver message]真的不是一个简简单单的方法调用。因为这只是在编译阶段确定了要向接收者发送message这条消息，而receive将要如何响应这条消息，那就要看运行时发生的情况来决定了。
+
+Objective-C 的 Runtime 铸就了它动态语言的特性，这些深层次的知识虽然平时写代码用的少一些，但是却是每个 Objc 程序员需要了解的。
+
+Objc Runtime使得C具有了面向对象能力，在程序运行时创建，检查，修改类、对象和它们的方法。可以使用runtime的一系列方法实现。
+
+顺便附上OC中一个类的数据结构 /usr/include/objc/runtime.h
+
+```objc
+struct objc_class {
+    Class isa OBJC_ISA_AVAILABILITY; //isa指针指向Meta Class，因为Objc的类的本身也是一个Object，为了处理这个关系，r       untime就创造了Meta Class，当给类发送[NSObject alloc]这样消息时，实际上是把这个消息发给了Class Object
+
+    #if !__OBJC2__
+    Class super_class OBJC2_UNAVAILABLE; // 父类
+    const char *name OBJC2_UNAVAILABLE; // 类名
+    long version OBJC2_UNAVAILABLE; // 类的版本信息，默认为0
+    long info OBJC2_UNAVAILABLE; // 类信息，供运行期使用的一些位标识
+    long instance_size OBJC2_UNAVAILABLE; // 该类的实例变量大小
+    struct objc_ivar_list *ivars OBJC2_UNAVAILABLE; // 该类的成员变量链表
+    struct objc_method_list **methodLists OBJC2_UNAVAILABLE; // 方法定义的链表
+    struct objc_cache *cache OBJC2_UNAVAILABLE; // 方法缓存，对象接到一个消息会根据isa指针查找消息对象，这时会在method       Lists中遍历，如果cache了，常用的方法调用时就能够提高调用的效率。
+    struct objc_protocol_list *protocols OBJC2_UNAVAILABLE; // 协议链表
+    #endif
+
+    } OBJC2_UNAVAILABLE;
+```
+
+OC中一个类的对象实例的数据结构（/usr/include/objc/objc.h）:
+```objc
+typedef struct objc_class *Class;
+
+/// Represents an instance of a class.
+
+struct objc_object {
+
+    Class isa  OBJC_ISA_AVAILABILITY;
+
+};
+
+/// A pointer to an instance of a class.
+
+typedef struct objc_object *id;
+```
+
+向object发送消息时，Runtime库会根据object的isa指针找到这个实例object所属于的类，然后在类的方法列表以及父类方法列表寻找对应的方法运行。id是一个objc_object结构类型的指针，这个类型的对象能够转换成任何一种对象。
+
+然后再来看看消息发送的函数：objc_msgSend函数
+
+在引言中已经对objc_msgSend进行了一点介绍，看起来像是objc_msgSend返回了数据，其实objc_msgSend从不返回数据而是你的方法被调用后返回了数据。下面详细叙述下消息发送步骤：
+
+检测这个 selector 是不是要忽略的。比如 Mac OS X 开发，有了垃圾回收就不理会 retain,release 这些函数了。
+检测这个 target 是不是 nil 对象。ObjC 的特性是允许对一个 nil 对象执行任何一个方法不会 Crash，因为会被忽略掉。
+如果上面两个都过了，那就开始查找这个类的 IMP，先从 cache 里面找，完了找得到就跳到对应的函数去执行。
+如果 cache 找不到就找一下方法分发表。
+如果分发表找不到就到超类的分发表去找，一直找，直到找到NSObject类为止。
+如果还找不到就要开始进入动态方法解析了，后面会提到。
+
+后面还有：
+动态方法解析resolveThisMethodDynamically
+消息转发forwardingTargetForSelector
+
+## SDWebImage里面给UIImageView加载图片的逻辑是什么样的？
+### options所有选项：
+```objc
+//失败后重试
+     SDWebImageRetryFailed = 1 << 0,
+
+     //UI交互期间开始下载，导致延迟下载比如UIScrollView减速。
+     SDWebImageLowPriority = 1 << 1,
+
+     //只进行内存缓存
+     SDWebImageCacheMemoryOnly = 1 << 2,
+
+     //这个标志可以渐进式下载,显示的图像是逐步在下载
+     SDWebImageProgressiveDownload = 1 << 3,
+
+     //刷新缓存
+     SDWebImageRefreshCached = 1 << 4,
+
+     //后台下载
+     SDWebImageContinueInBackground = 1 << 5,
+
+     //NSMutableURLRequest.HTTPShouldHandleCookies = YES;
+
+     SDWebImageHandleCookies = 1 << 6,
+
+     //允许使用无效的SSL证书
+     //SDWebImageAllowInvalidSSLCertificates = 1 << 7,
+
+     //优先下载
+     SDWebImageHighPriority = 1 << 8,
+
+     //延迟占位符
+     SDWebImageDelayPlaceholder = 1 << 9,
+
+     //改变动画形象
+     SDWebImageTransformAnimatedImage = 1 << 10,
+```
+
+### SDWebImage内部实现过程
+1. 入口 setImageWithURL:placeholderImage:options: 会先把 placeholderImage 显示，然后 SDWebImageManager 根据 URL 开始处理图片。
+2. 进入 SDWebImageManager-downloadWithURL:delegate:options:userInfo:，交给 SDImageCache 从缓存查找图片是否已经下载        queryDiskCacheForKey:delegate:userInfo:.
+3. 先从内存图片缓存查找是否有图片，如果内存中已经有图片缓存，SDImageCacheDelegate 回调 imageCache:didFindImage:forKey:userInfo: 到 SDWebImageManager。
+4. SDWebImageManagerDelegate 回调 webImageManager:didFinishWithImage: 到 UIImageView+WebCache 等前端展示图片。
+5. 如果内存缓存中没有，生成 NSInvocationOperation 添加到队列开始从硬盘查找图片是否已经缓存。
+6. 根据 URLKey 在硬盘缓存目录下尝试读取图片文件。这一步是在 NSOperation 进行的操作，所以回主线程进行结果回调 notifyDelegate:。
+7. 如果上一操作从硬盘读取到了图片，将图片添加到内存缓存中（如果空闲内存过小，会先清空内存缓存）。SDImageCacheDelegate 回调 imageCache:didFindImage:forKey:userInfo:。进而回调展示图片。
+8. 如果从硬盘缓存目录读取不到图片，说明所有缓存都不存在该图片，需要下载图片，回调 imageCache:didNotFindImageForKey:userInfo:。
+9. 共享或重新生成一个下载器 SDWebImageDownloader 开始下载图片。
+10. 图片下载由 NSURLConnection 来做，实现相关 delegate 来判断图片下载中、下载完成和下载失败。
+11. connection:didReceiveData: 中利用 ImageIO 做了按图片下载进度加载效果。
+12. connectionDidFinishLoading: 数据下载完成后交给 SDWebImageDecoder 做图片解码处理。
+13. 图片解码处理在一个 NSOperationQueue 完成，不会拖慢主线程 UI。如果有需要对下载的图片进行二次处理，最好也在这里完成，效率会好很多。
+14. 在主线程 notifyDelegateOnMainThreadWithInfo: 宣告解码完成，imageDecoder:didFinishDecodingImage:userInfo: 回调给 SDWebImageDownloader。
+15. imageDownloader:didFinishWithImage: 回调给 SDWebImageManager 告知图片下载完成。
+16. 通知所有的 downloadDelegates 下载完成，回调给需要的地方展示图片。
+17. 将图片保存到 SDImageCache 中，内存缓存和硬盘缓存同时保存。写文件到硬盘也在以单独 NSInvocationOperation 完成，避免拖慢主线程。
+18. SDImageCache 在初始化的时候会注册一些消息通知，在内存警告或退到后台的时候清理内存图片缓存，应用结束的时候清理过期图片。
+19. SDWI 也提供了 UIButton+WebCache 和 MKAnnotationView+WebCache，方便使用。
+20. SDWebImagePrefetcher 可以预先下载图片，方便后续使用。
+
+从上面流程可以看出，当你调用setImageWithURL:方法的时候，他会自动去给你干这么多事，当你需要在某一具体时刻做事情的时候，你可以覆盖这些方法。比如在下载某个图片的过程中要响应一个事件，就覆盖这个方法：
+```objc
+//覆盖方法，指哪打哪，这个方法是下载imagePath2的时候响应
+    SDWebImageManager *manager = [SDWebImageManager sharedManager];
+
+    [manager downloadImageWithURL:imagePath2 options:SDWebImageRetryFailed progress:^(NSInteger receivedSize, NSInteger expectedSize) {
+
+        NSLog(@"显示当前进度");
+
+    } completed:^(UIImage *image, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
+
+        NSLog(@"下载完成");
+    }];
+```
+
+## 设计个简单的图片内存缓存器（移除策略是一定要说的）
+图片的内存缓存，可以考虑将图片数据保存到一个数据模型中。所以在程序运行时这个模型都存在内存中。
+移除策略：释放数据模型对象。
+
+## loadView是干嘛用的？
+当你访问一个ViewController的view属性时，如果此时view的值是nil，那么，ViewController就会自动调用loadView这个方法。这个方法就会加载或者创建一个view对象，赋值给view属性。
+loadView默认做的事情是：如果此ViewController存在一个对应的nib文件，那么就加载这个nib。否则，就创建一个UIView对象。
+
+如果你用Interface Builder来创建界面，那么不应该重载这个方法。
+
+如果你想自己创建view对象，那么可以重载这个方法。此时你需要自己给view属性赋值。你自定义的方法不应该调用super。如果你需要对view做一些其他的定制操作，在viewDidLoad里面去做。
+----
+根据上面的文档可以知道，有两种情况：
+
+1. 如果你用了nib文件，重载这个方法就没有太大意义。因为loadView的作用就是加载nib。如果你重载了这个方法不调用super，那么nib文件就不会被加载。如果调用了super，那么view已经加载完了，你需要做的其他事情在viewDidLoad里面做更合适。
+
+2. 如果你没有用nib，这个方法默认就是创建一个空的view对象。如果你想自己控制view对象的创建，例如创建一个特殊尺寸的view，那么可以重载这个方法，自己创建一个UIView对象，然后指定 self.view = myView; 但这种情况也没有必要调用super，因为反正你也不需要在super方法里面创建的view对象。如果调用了super，那么就是浪费了一些资源而已
+
+## viewWillLayoutSubView
+横竖屏切换的时候，系统会响应一些函数，其中 viewWillLayoutSubviews 和 viewDidLayoutSubviews。
+```objc
+- (void)viewWillLayoutSubviews
+
+{
+
+     [self _shouldRotateToOrientation:(UIDeviceOrientation)[UIApplication sharedApplication].statusBarOrientation];
+
+}
+
+-(void)_shouldRotateToOrientation:(UIDeviceOrientation)orientation {
+        if (orientation == UIDeviceOrientationPortrait ||orientation ==
+                UIDeviceOrientationPortraitUpsideDown) {
+          // 竖屏
+}
+else {
+         // 横屏
+    }
+}
+```
+通过上述一个函数就知道横竖屏切换的接口了。
+注意：viewWillLayoutSubviews只能用在ViewController里面，在view里面没有响应。
+
+## 你实现过多线程的Core Data么？NSPersistentStoreCoordinator，NSManagedObjectContext和NSManagedObject中的哪些需要在线程中创建或者传递？你是用什么样的策略来实现的？
+https://onevcat.com/2014/03/common-background-practices/
+## Core开头的系列的内容。是否使用过CoreAnimation和CoreGraphics。UI框架和CA，CG框架的联系是什么？分别用CA和CG做过些什么动画或者图像上的内容。（有需要的话还可以涉及Quartz的一些内容）
+https://onevcat.com/2013/04/using-blending-in-ios/
+
+## 你实现过一个框架或者库以供别人使用么？如果有，请谈一谈构建框架或者库时候的经验；如果没有，请设想和设计框架的public的API，并指出大概需要如何做、需要注意一些什么方面，来使别人容易地使用你的框架。
+
+## 深浅复制和属性为copy，strong值的变化问题
+浅复制：只复制指向对象的指针，而不复制引用对象本身。对于浅复制来说，A和A_copy指向的是同一个内存资源，复制的只不个是一个指针，对象本身资源还是只有一份，那如果我们对A_copy执行了修改操作，那么发现A引用的对象同样被修改了。深复制就好理解了，内存中存在了两份独立对象本身。
+
+在Objective-C中并不是所有的对象都支持Copy，MutableCopy，遵守NSCopying协议的类才可以发送Copy消息，遵守NSMutableCopying协议的类才可以发送MutableCopy消息。
+```objc
+[immutableObject copy] // 浅拷贝
+[immutableObject mutableCopy] //深拷贝
+[mutableObject copy] //深拷贝
+[mutableObject mutableCopy] //深拷贝
+```
+
+属性设为copy,指定此属性的值不可更改，防止可变字符串更改自身的值的时候不会影响到对象属性（如NSString,NSArray,NSDictionary）的值。strong此属性的指会随着变化而变化。copy是内容拷贝，strong是指针拷贝。
+
+## NSTimer创建后，会在哪个线程运行。
+用scheduledTimerWithTimeInterval创建的，在哪个线程创建就会被加入哪个线程的RunLoop中就运行在哪个线程。
+
+自己创建的Timer，加入到哪个线程的RunLoop中就运行在哪个线程。
+
+## KVO，NSNotification，delegate及block区别
+KVO就是cocoa框架实现的观察者模式，一般同KVC搭配使用，通过KVO可以监测一个值的变化，比如View的高度变化。是一对多的关系，一个值的变化会通知所有的观察者。
+
+NSNotification是通知，也是一对多的使用场景。在某些情况下，KVO和NSNotification是一样的，都是状态变化之后告知对方。NSNotification的特点，就是需要被观察者先主动发出通知，然后观察者注册监听后再来进行响应，比KVO多了发送通知的一步，但是其优点是监听不局限于属性的变化，还可以对多种多样的状态变化进行监听，监听范围广，使用也更灵活。
+
+delegate 是代理，就是我不想做的事情交给别人做。比如狗需要吃饭，就通过delegate通知主人，主人就会给他做饭、盛饭、倒水，这些操作，这些狗都不需要关心，只需要调用delegate（代理人）就可以了，由其他类完成所需要的操作。所以delegate是一对一关系。
+
+block是delegate的另一种形式，是函数式编程的一种形式。使用场景跟delegate一样，相比delegate更灵活，而且代理的实现更直观。
+
+KVO一般的使用场景是数据，需求是数据变化，比如股票价格变化，我们一般使用KVO（观察者模式）。delegate一般的使用场景是行为，需求是需要别人帮我做一件事情，比如买卖股票，我们一般使用delegate。Notification一般是进行全局通知，比如利好消息一出，通知大家去买入。delegate是强关联，就是委托和代理双方互相知道，你委托别人买股票你就需要知道经纪人，经纪人也不要知道自己的顾客。Notification是弱关联，利好消息发出，你不需要知道是谁发的也可以做出相应的反应，同理发消息的人也不需要知道接收的人也可以正常发出消息。
+
+## 如何让计时器(NSTimer)调用一个类方法
+计时器只能调用实例方法，但是可以在这个实例方法里面调用静态方法。
+
+使用计时器需要注意，计时器一定要加入RunLoop中，并且选好model才能运行。scheduledTimerWithTimeInterval方法创建一个计时器并加入到RunLoop中所以可以直接使用。
+
+如果计时器的repeats选择YES说明这个计时器会重复执行，一定要在合适的时机调用计时器的invalid。不能在dealloc中调用，因为一旦设置为repeats 为yes，计时器会强持有self，导致dealloc永远不会被调用，这个类就永远无法被释放。比如可以在viewDidDisappear中调用，这样当类需要被回收的时候就可以正常进入dealloc中了。
+
+## 调用一个类的静态方法需不需要release？
+静态方法，就是类方法，不需要，类方法对象放在autorelease中
+
+## NSObject的load和initialize方法
+**load和initialize的共同特点**
+在不考虑开发者主动使用的情况下，系统最多会调用一次
+如果父类和子类都被调用，父类的调用一定在子类之前
+都是为了应用运行提前创建合适的运行环境
+在使用时都不要过重地依赖于这两个方法，除非真正必要
+
+**load和initialize的区别**
+**load方法**
+
+调用时机比较早，运行环境有不确定因素。具体说来，在iOS上通常就是App启动时进行加载，但当load调用的时候，并不能保证所有类都加载完成且可用，必要时还要自己负责做auto release处理。对于有依赖关系的两个库中，被依赖的类的load会优先调用。但在一个库之内，调用顺序是不确定的。
+
+对于一个类而言，没有load方法实现就不会调用，不会考虑对NSObject的继承。
+
+一个类的load方法不用写明[super load]，父类就会收到调用，并且在子类之前。
+
+Category的load也会收到调用，但顺序上在主类的load调用之后。
+
+不会直接触发initialize的调用。
+
+**initialize方法相关要点**
+
+initialize的自然调用是在第一次主动使用当前类的时候。
+
+在initialize方法收到调用时，运行环境基本健全。
+
+initialize的运行过程中是能保证线程安全的。
+
+和load不同，即使子类不实现initialize方法，会把父类的实现继承过来调用一遍。注意的是在此之前，父类的方法已经被执行过一次了，同样不需要super调用。
+
+由于initialize的这些特点，使得其应用比load要略微广泛一些。可用来做一些初始化工作，或者单例模式的一种实现方案。
+
+##  能否向编译后得到的类中增加实例变量？能否向运行时创建的类中添加实例变量？为什么？
+不能向编译后得到的类中增加实例变量；
+能向运行时创建的类中添加实例变量；
+
+因为编译后的类已经注册在 runtime 中，类结构体中的 objc_ivar_list 实例变量的链表 和 instance_size 实例变量的内存大小已经确定，同时runtime 会调用 class_setIvarLayout 或 class_setWeakIvarLayout 来处理 strong weak 引用。所以不能向存在的类中添加实例变量；
+
+运行时创建的类是可以添加实例变量，调用 class_addIvar 函数。但是得在调用 objc_allocateClassPair 之后，objc_registerClassPair 之前，原因同上。
+
+## nil/Nil/NULL/NSNull
+1. NULL
+声明位置在stddef.h文件
+对于普通的iOS开发者来说，通常NULL的定义就是：`#  define NULL ((void*)0)`
+因此，NULL本质上是：(void*)0
+NULL表示C指针为空`charchar *string = NULL;`
+2. nil  
+声明在objc.h文件
+对于普通iOS开发者来说，nil的定义形式为：`#   define nil __DARWIN_NULL`
+就是说nil最终是DARWIN_NULL的宏定义，DARWIN_NULL是定义在_types.h中的宏。`#define __DARWIN_NULL ((void *)0)`
+也就是说，nil本质上是：(void *)0
+用于表示指向Objective-C中对象的指针为空
+```objc
+NSString *string = nil;  
+id anyObject = nil;
+```
+3. Nil
+声明位置在objc.h文件
+和上面讲到的nil一样，Nil本质上也是：(void *)0
+用于表示Objective-C类（Class）类型的变量值为空
+```objc
+Class anyClass = Nil;
+```
+4. NSNull
+声明位置在NSNull.h文件
+定义
+```objc
+@interface NSNull : NSObject <NSCopying, NSSecureCoding>  
++ (NSNull *)null;  
+@end
+```
+从定义中可以看出，NSNull是一个Objective-C类，只不过这个类相当特殊，因为它表示的是空值，即什么都不存。它也只有一个单例方法+[NSUll null]。该类通常用于在集合对象中保存一个空的占位对象。
+
+我们通常初始化NSArray对象的形式如下：
+```objc
+NSArray *arr = [NSArray arrayWithObjects:@"wang",@"zz",nil];
+```
+当NSArray里遇到nil时，就说明这个数组对象的元素截止了，即NSArray只关注nil之前的对象，nil之后的对象会被抛弃。比如下面的写法：
+```objc
+NSArray *arr = [NSArray arrayWithObjects:@"wang",@"zz",nil,@"foogry"];
+```
+这是NSArray中只会保存wang和zz两个字符串，foogry字符串会被抛弃。
+这种情况，就可以使用NSNull实现：
+```objc
+NSArray *arr = [NSArray arrayWithObjects:@"wang",@"zz",[NSNull null],@"foogry"];
+```
+从前面的介绍可以看出，不管是NULL、nil还是Nil，它们本质上都是一样的，都是(void *)0，只是写法不同。这样做的意义是为了区分不同的数据类型，比如你一看到用到了NULL就知道这是个C指针，看到nil就知道这是个Objective-C对象，看到Nil就知道这是个Class类型的数据。
+
+注意：NULL是C指针指向的值为空；nil是OC对象指针自己本身为空，不是值为空
+
+## 界面卡顿产生的原因和解决方案
+> iOS界面处理是在主线程下进行的，系统图形服务通过 CADisplayLink 等机制通知 App，App 主线程开始在 CPU 中计算显示内容，比如视图的创建、布局计算、图片解码、文本绘制等。随后 CPU 会将计算好的内容提交到 GPU 去，由 GPU 进行变换、合成、渲染。随后 GPU 会把渲染结果提交到帧缓冲区去，等待下一次刷新信号到来时显示到屏幕上。显示器通常以固定频率进行刷新，如果在一个刷新时间内，CPU 或者 GPU 没有完成内容提交，则那一帧就会被丢弃，等待下一次机会再显示，而这时显示屏会保留之前的内容不变。这就是界面卡顿的原因。CPU 和 GPU 不论哪个阻碍了显示流程，都会造成掉帧现象。
+### CPU 资源消耗原因和解决方案
+#### 对象创建
+对象的创建会分配内存、调整属性、甚至还有读取文件等操作，比较消耗 CPU 资源。尽量用轻量的对象代替重量的对象，可以对性能有所优化。比如 CALayer 比 UIView 要轻量许多，那么不需要响应触摸事件的控件，用 CALayer 显示会更加合适。如果对象不涉及 UI 操作，则尽量放到后台线程去创建，但可惜的是包含有 CALayer 的控件，都只能在主线程创建和操作。通过 Storyboard 创建视图对象时，其资源消耗会比直接通过代码创建对象要大非常多，在性能敏感的界面里，Storyboard 并不是一个好的技术选择。
+
+尽量推迟对象创建的时间，并把对象的创建分散到多个任务中去。尽管这实现起来比较麻烦，并且带来的优势并不多，但如果有能力做，还是要尽量尝试一下。如果对象可以复用，并且复用的代价比释放、创建新对象要小，那么这类对象应当尽量放到一个缓存池里复用。
+
+#### 对象调整
+对象的调整也经常是消耗 CPU 资源的地方。这里特别说一下 CALayer：CALayer 内部并没有属性，当调用属性方法时，它内部是通过运行时 resolveInstanceMethod 为对象临时添加一个方法，并把对应属性值保存到内部的一个 Dictionary 里，同时还会通知 delegate、创建动画等等，非常消耗资源。UIView 的关于显示相关的属性（比如 frame/bounds/transform）等实际上都是 CALayer 属性映射来的，所以对 UIView 的这些属性进行调整时，消耗的资源要远大于一般的属性。对此你在应用中，应该尽量减少不必要的属性修改。当视图层次调整时，UIView、CALayer 之间会出现很多方法调用与通知，所以在优化性能时，应该尽量避免调整视图层次、添加和移除视图。
+
+#### 对象销毁
+对象的销毁虽然消耗资源不多，但累积起来也是不容忽视的。通常当容器类持有大量对象时，其销毁时的资源消耗就非常明显。同样的，如果对象可以放到后台线程去释放，那就挪到后台线程去。这里有个小 Tip：把对象捕获到 block 中，然后扔到后台队列去随便发送个消息以避免编译器警告，就可以让对象在后台线程销毁了。
+```objc
+NSArray *tmp = self.array;
+self.array = nil;
+dispatch_async(queue, ^{
+[tmp class];
+});
+
+```
+#### 布局计算
+视图布局的计算是 App 中最为常见的消耗 CPU 资源的地方。如果能在后台线程提前计算好视图布局、并且对视图布局进行缓存，那么这个地方基本就不会产生性能问题了。
+
+不论通过何种技术对视图进行布局，其最终都会落到对 UIView.frame/bounds/center 等属性的调整上。上面也说过，对这些属性的调整非常消耗资源，所以尽量提前计算好布局，在需要时一次性调整好对应属性，而不要多次、频繁的计算和调整这些属性。
+
+#### Autolayout
+Autolayout 是苹果本身提倡的技术，在大部分情况下也能很好的提升开发效率，但是 Autolayout 对于复杂视图来说常常会产生严重的性能问题。随着视图数量的增长，Autolayout 带来的 CPU 消耗会呈指数级上升。如果你不想手动调整 frame 等属性，你可以用一些工具方法替代（比如常见的 left/right/top/bottom/width/height 快捷属性），或者使用 ComponentKit、AsyncDisplayKit 等框架。
+
+#### 文本计算
+如果一个界面中包含大量文本（比如微博微信朋友圈等），文本的宽高计算会占用很大一部分资源，并且不可避免。如果你对文本显示没有特殊要求，可以参考下 UILabel 内部的实现方式：用 [NSAttributedString boundingRectWithSize:options:context:] 来计算文本宽高，用 -[NSAttributedString drawWithRect:options:context:] 来绘制文本。尽管这两个方法性能不错，但仍旧需要放到后台线程进行以避免阻塞主线程。如果你用 CoreText 绘制文本，那就可以先生成 CoreText 排版对象，然后自己计算了，并且 CoreText 对象还能保留以供稍后绘制使用。
+
+#### 文本渲染
+屏幕上能看到的所有文本内容控件，包括 UIWebView，在底层都是通过 CoreText 排版、绘制为 Bitmap 显示的。常见的文本控件 （UILabel、UITextView 等），其排版和绘制都是在主线程进行的，当显示大量文本时，CPU 的压力会非常大。对此解决方案只有一个，那就是自定义文本控件，用 TextKit 或最底层的 CoreText 对文本异步绘制。尽管这实现起来非常麻烦，但其带来的优势也非常大，CoreText 对象创建好后，能直接获取文本的宽高等信息，避免了多次计算（调整 UILabel 大小时算一遍、UILabel 绘制时内部再算一遍）；CoreText 对象占用内存较少，可以缓存下来以备稍后多次渲染。
+
+#### 图片的解码
+当你用 UIImage 或 CGImageSource 的那几个方法创建图片时，图片数据并不会立刻解码。图片设置到 UIImageView 或者 CALayer.contents 中去，并且 CALayer 被提交到 GPU 前，CGImage 中的数据才会得到解码。这一步是发生在主线程的，并且不可避免。如果想要绕开这个机制，常见的做法是在后台线程先把图片绘制到 CGBitmapContext 中，然后从 Bitmap 直接创建图片。目前常见的网络图片库都自带这个功能。
+
+#### 图像的绘制
+图像的绘制通常是指用那些以 CG 开头的方法把图像绘制到画布中，然后从画布创建图片并显示这样一个过程。这个最常见的地方就是 [UIView drawRect:] 里面了。由于 CoreGraphic 方法通常都是线程安全的，所以图像的绘制可以很容易的放到后台线程进行。一个简单异步绘制的过程大致如下（实际情况会比这个复杂得多，但原理基本一致）：
+```objc
+- (void)display {
+dispatch_async(backgroundQueue, ^{
+    CGContextRef ctx = CGBitmapContextCreate(...);
+    // draw in context...
+    CGImageRef img = CGBitmapContextCreateImage(ctx);
+    CFRelease(ctx);
+    dispatch_async(mainQueue, ^{
+        layer.contents = img;
+    });
+});
+}
+```
+### GPU资源消耗原因和解决方案
+相对于 CPU 来说，GPU 能干的事情比较单一：接收提交的纹理（Texture）和顶点描述（三角形），应用变换（transform）、混合并渲染，然后输出到屏幕上。通常你所能看到的内容，主要也就是纹理（图片）和形状（三角模拟的矢量图形）两类。
+
+#### 纹理的渲染
+所有的 Bitmap，包括图片、文本、栅格化的内容，最终都要由内存提交到显存，绑定为 GPU Texture。不论是提交到显存的过程，还是 GPU 调整和渲染 Texture 的过程，都要消耗不少 GPU 资源。当在较短时间显示大量图片时（比如 TableView 存在非常多的图片并且快速滑动时），CPU 占用率很低，GPU 占用非常高，界面仍然会掉帧。避免这种情况的方法只能是尽量减少在短时间内大量图片的显示，尽可能将多张图片合成为一张进行显示。
+
+当图片过大，超过 GPU 的最大纹理尺寸时，图片需要先由 CPU 进行预处理，这对 CPU 和 GPU 都会带来额外的资源消耗。目前来说，iPhone 4S 以上机型，纹理尺寸上限都是 4096x4096，所以，尽量不要让图片和视图的大小超过这个值。
+
+#### 视图的混合 (Composing)
+当多个视图（或者说 CALayer）重叠在一起显示时，GPU 会首先把他们混合到一起。如果视图结构过于复杂，混合的过程也会消耗很多 GPU 资源。为了减轻这种情况的 GPU 消耗，应用应当尽量减少视图数量和层次，并在不透明的视图里标明 opaque 属性以避免无用的 Alpha 通道合成。当然，这也可以用上面的方法，把多个视图预先渲染为一张图片来显示。
+
+#### 图形的生成
+CALayer 的 border、圆角、阴影、遮罩（mask），CASharpLayer 的矢量图形显示，通常会触发离屏渲染（offscreen rendering），而离屏渲染通常发生在 GPU 中。当一个列表视图中出现大量圆角的 CALayer，并且快速滑动时，可以观察到 GPU 资源已经占满，而 CPU 资源消耗很少。这时界面仍然能正常滑动，但平均帧数会降到很低。为了避免这种情况，可以尝试开启 CALayer.shouldRasterize 属性，但这会把原本离屏渲染的操作转嫁到 CPU 上去。对于只需要圆角的某些场合，也可以用一张已经绘制好的圆角图片覆盖到原本视图上面来模拟相同的视觉效果。最彻底的解决办法，就是把需要显示的图形在后台线程绘制为图片，避免使用圆角、阴影、遮罩等属性。
