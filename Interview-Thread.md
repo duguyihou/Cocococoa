@@ -32,19 +32,14 @@ NSThread是一个控制线程执行的对象，它不如NSOperation抽象，通�
 建议在复杂项目中使用。
 项目中使用GCD的优点是GCD本身非常简单、易用，对于不复杂的多线程操作，会节省代码量，而Block参数的使用，
 会是代码更为易读，建议在简单项目中使用。
-
-## 在使用GCD以及block时要注意些什么？它们两是一回事儿么？block在ARC中和传统的MRC中的行为和用法有没有什么区别，需要注意些什么？
+## 在使用GCD以及block时要注意些什么？它们两是一回事儿么?block在ARC中和传统的MRC中的行为和用法有没有什么区别，需要注意些什么？
 https://onevcat.com/2014/03/common-background-practices/
-
 https://onevcat.com/2011/11/objc-block/
-
 https://onevcat.com/2012/06/arc-hand-by-hand/
-
 ## GCD里面有哪几种Queue？你自己建立过串行queue吗？背后的线程模型是什么样的？
 1.主队列 dispatch_main_queue(); 串行 ，更新UI
 2.全局队列 dispatch_global_queue(); 并行，四个优先级：background，low，default，high
 3.自定义队列 dispatch_queue_t queue ; 可以自定义是并行：DISPATCH_QUEUE_CONCURRENT或者串行DISPATCH_QUEUE_SERIAL
-
 ## GCD实现1，2并行和3串行和45串行，4，5是并行。即3依赖1，2的执行，45依赖3的执行。
 **队列组的方式**
 ```objc
@@ -98,25 +93,18 @@ dispatch_queue_t q = dispatch_get_main_queue();
 串行队列开启异步任务后嵌套同步任务造成死锁。
 ## 常用的多线程处理方式及优缺点
 iOS有四种多线程编程的技术，分别是：NSThread，Cocoa NSOperation，GCD（全称：Grand Central Dispatch）,pthread。
-
 **四种方式的优缺点介绍:**
-
 1. NSThread优点：**NSThread 比其他两个轻量级**。
 缺点：需要自己管理线程的生命周期，线程同步。线程同步对数据的加锁会有一定的系统开销。
-
 2. Cocoa NSOperation优点:不需要关心线程管理， 数据同步的事情，可以把精力放在自己需要执行的操作上。
 Cocoa operation相关的类是NSOperation, NSOperationQueue.NSOperation是个抽象类,
 使用它必须用它的子类，可以实现它或者使用它定义好的两个子类: NSInvocationOperation和NSBlockOperation.
 创建NSOperation子类的对象，把对象添加到NSOperationQueue队列里执行。
-
 3. GCD(全优点)Grand Central dispatch(GCD)是Apple开发的一个多核编程的解决方案。
 在iOS4.0开始之后才能使用。GCD是一个替代NSThread, NSOperationQueue,NSInvocationOperation等技术的很高效强大的技术。
-
 4. pthread是一套通用的多线程API，适用于Linux\Windows\Unix,跨平台，可移植，使用C语言，
 生命周期需要程序员管理，IOS开发中使用很少。
-
 **GCD线程死锁**
-
 GCD 确实好用 ，很强大，相比NSOpretion 无法提供 取消任务的功能。
 如此强大的工具用不好可能会出现线程死锁。 如下代码：
 ```objc
@@ -128,20 +116,15 @@ dispatch_sync(dispatch_get_main_queue(),
 NSLog(@"=================6");
 }
 ```
-
 **GCD Queue 分为三种：**
 1，The main queue ：主队列，主线程就是在个队列中。
 2，Global queues ： 全局并发队列。
 3，用户队列:是用函数 dispatch_queue_create创建的自定义队列
-
 **dispatch_sync 和 dispatch_async 区别：**
-
 dispatch_async(queue,block) async 异步队列，dispatch_async
 函数会立即返回, block会在后台异步执行。
-
 dispatch_sync(queue,block) sync 同步队列，dispatch_sync
 函数不会立即返回，及阻塞当前线程,等待 block同步执行完成。
-
 **分析上面代码：**
 viewDidLoad 在主线程中， 及在dispatch_get_main_queue() 中，执行到sync 时 向
 dispatch_get_main_queue()插入 同步 threed。sync 会等到 后面block 执行完成才返回， sync 又再 dispatch_get_main_queue() 队列中，它是串行队列，sync 是后加入的，前一个是主线程，所以 sync 想执行 block 必须等待主线程执行完成，主线程等待 sync 返回，去执行后续内容。照成死锁，sync 等待mainThread 执行完成， mianThread 等待sync 函数返回。下面例子：
@@ -157,14 +140,12 @@ NSLog(@"=================3"); });
 ```
 程序会完成执行，为什么不会出现死锁。
 首先： async 在主线程中 创建了一个异步线程 加入 全局并发队列，async 不会等待block 执行完成，立即返回，
-1，async 立即返回， viewDidLoad 执行完毕，及主线程执行完毕。
-2，同时，全局并发队列立即执行异步 block ， 打印 1， 当执行到 sync 它会等待 block 执行完成才返回，
+1. async 立即返回， viewDidLoad 执行完毕，及主线程执行完毕。
+2. 同时，全局并发队列立即执行异步 block ， 打印 1， 当执行到 sync 它会等待 block 执行完成才返回，
  及等待dispatch_get_main_queue() 队列中的 mianThread 执行完成， 然后才开始调用block 。
  因为1 和 2 几乎同时执行，因为2 在全局并发队列上， 2 中执行到sync 时 1 可能已经执行完成或 等了一会，
  mainThread 很快退出， 2 等已执行后继续内容。如果阻塞了主线程，2 中的sync 就无法执行啦，
  mainThread 永远不会退出， sync 就永远等待着。
-
-
 ##  线程与进程的区别和联系?
 1). 进程和线程都是由操作系统所体会的程序运行的基本单元，系统利用该基本单元实现系统对应用的并发性
 
