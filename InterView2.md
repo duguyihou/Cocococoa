@@ -73,71 +73,23 @@ initialization for the class and for categories of the class, you should impleme
 ## Fast Enumeration 的实现原理
 [Objective-C Fast Enumeration 的实现原理](http://blog.leichunfeng.com/blog/2016/06/20/objective-c-fast-enumeration-implementation-principle/)
 
-## 在使用GCD以及block时要注意些什么？它们两是一回事儿么？block在ARC中和传统的MRC中的行为和用法有没有什么区别，需要注意些什么？
-https://onevcat.com/2014/03/common-background-practices/
-
-https://onevcat.com/2011/11/objc-block/
-
-https://onevcat.com/2012/06/arc-hand-by-hand/
-
-## GCD里面有哪几种Queue？你自己建立过串行queue吗？背后的线程模型是什么样的？
-1.主队列 dispatch_main_queue(); 串行 ，更新UI
-2.全局队列 dispatch_global_queue(); 并行，四个优先级：background，low，default，high
-3.自定义队列 dispatch_queue_t queue ; 可以自定义是并行：DISPATCH_QUEUE_CONCURRENT或者串行DISPATCH_QUEUE_SERIAL
-
-## GCD实现1，2并行和3串行和45串行，4，5是并行。即3依赖1，2的执行，45依赖3的执行。
-**队列组的方式**
+## Object-C有私有方法吗？私有变量呢？
+objective-c – 类里面的方法只有两种, 静态方法和实例方法. 这似乎就不是完整的面向对象了,
+按照OO的原则就是一个对象只暴露有用的东西. 如果没有了私有方法的话, 对于一些小范围的代码重用就不那么顺手了.
+在类里面声名一个私有方法
 ```objc
-- (void) methodone{
-dispatch_group_t group = dispatch_group_create();
+@interface?Controller?:?NSObject?{?NSString?*something;?}
++?(void)thisIsAStaticMethod;
+–?(void)thisIsAnInstanceMethod;
+@end
+@interface?Controller?(private)?-
+(void)thisIsAPrivateMethod;
+@end
+@private可以用来修饰私有变量
 
-dispatch_group_async(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-    NSLog(@"%d",1);
-});
-
-dispatch_group_async(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-    NSLog(@"%d",2);
-});
-
-dispatch_group_notify(group, dispatch_get_main_queue(), ^{
-    NSLog(@"3");
-
-    dispatch_group_t group1 = dispatch_group_create();
-
-    dispatch_group_async(group1, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSLog(@"%d",4);
-    });
-
-    dispatch_group_async(group1, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        NSLog(@"%d",5);
-    });
-
-});
-
-}
 ```
-串行队列：队列中的任务只会顺序执行
-```objc
-dispatch_queue_t q = dispatch_queue_create(“....”, dispatch_queue_serial);
-```
-并行队列： 队列中的任务通常会并发执行。 　
-```objc
-dispatch_queue_t q = dispatch_queue_create("......", dispatch_queue_concurrent);  
-```
-全局队列：是系统开发的，直接拿过来用就可以；与并行队列类似，但调试时，无法确认操作所在队列。
-```objc
-dispatch_queue_t q = dispatch_get_global_queue(dispatch_queue_priority_default, 0);
-```
-主队列：每一个应用开发程序对应唯一一个主队列，直接get即可；在多线程开发中，使用主队列更新UI。
-```objc
-dispatch_queue_t q = dispatch_get_main_queue();
-```
-主队列是GCD自带的串行队列，会在主线程中执行。异步全局并发队列 开启新线程，并发执行。
-并行队列里开启同步任务是有执行顺序的，只有异步才没有顺序。
-串行队列开启异步任务，是有顺序的。
-串行队列开启异步任务后嵌套同步任务造成死锁。
 
-
+在Objective‐C中，所有实例变量默认都是私有的，所有实例方法默认都是公有的
 
 ## 对block的理解
 
@@ -209,6 +161,91 @@ typedef?void(^didFinishBlock)?(NSObject?*ob);
 __block是一种特殊类型，
 
 使用该关键字声明的局部变量，可以被block所改变，并且其在原函数中的值会被改变。
+
+## 为什么其他语言里叫函数调用， objective c里则是给对象发消息（或者谈下对runtime的理解）
+先来看看怎么理解发送消息的含义：
+
+曾经觉得Objc特别方便上手，面对着 Cocoa 中大量 API，只知道简单的查文档和调用。还记得初学
+ Objective-C 时把[receiver message]当成简单的方法调用，而无视了“发送消息”这句话的深刻含义。
+ 于是[receiver message]会被编译器转化为：
+objc_msgSend(receiver, selector)
+如果消息含有参数，则为：
+`objc_msgSend(receiver, selector, arg1, arg2, ...)`
+
+如果消息的接收者能够找到对应的selector，那么就相当于直接执行了接收者这个对象的特定方法；
+否则，消息要么被转发，或是临时向接收者动态添加这个selector对应的实现内容，要么就干脆玩完崩溃掉。
+
+现在可以看出[receiver message]真的不是一个简简单单的方法调用。因为这只是在编译阶段确定了
+要向接收者发送message这条消息，而receive将要如何响应这条消息，那就要看运行时发生的情况来决定了。
+
+Objective-C 的 Runtime 铸就了它动态语言的特性，这些深层次的知识虽然平时写代码用的少一些，
+但是却是每个 Objc 程序员需要了解的。
+
+Objc Runtime使得C具有了面向对象能力，在程序运行时创建，检查，修改类、对象和它们的方法。
+可以使用runtime的一系列方法实现。
+
+顺便附上OC中一个类的数据结构 /usr/include/objc/runtime.h
+
+```objc
+struct objc_class {
+    Class isa OBJC_ISA_AVAILABILITY; //isa指针指向Meta Class，
+    因为Objc的类的本身也是一个Object，为了处理这个关系，runtime就创造了Meta Class，
+    当给类发送[NSObject alloc]这样消息时，实际上是把这个消息发给了Class Object
+
+    #if !__OBJC2__
+    Class super_class OBJC2_UNAVAILABLE; // 父类
+    const char *name OBJC2_UNAVAILABLE; // 类名
+    long version OBJC2_UNAVAILABLE; // 类的版本信息，默认为0
+    long info OBJC2_UNAVAILABLE; // 类信息，供运行期使用的一些位标识
+    long instance_size OBJC2_UNAVAILABLE; // 该类的实例变量大小
+    struct objc_ivar_list *ivars OBJC2_UNAVAILABLE; // 该类的成员变量链表
+    struct objc_method_list **methodLists OBJC2_UNAVAILABLE; // 方法定义的链表
+    struct objc_cache *cache OBJC2_UNAVAILABLE; // 方法缓存，对象接到一个消息会根据isa
+    指针查找消息对象，这时会在method       Lists中遍历，如果cache了，常用的方法调用时就能够提高调用的效率。
+    struct objc_protocol_list *protocols OBJC2_UNAVAILABLE; // 协议链表
+    #endif
+
+    } OBJC2_UNAVAILABLE;
+
+```
+
+OC中一个类的对象实例的数据结构（/usr/include/objc/objc.h）:
+```objc
+typedef struct objc_class *Class;
+
+/// Represents an instance of a class.
+
+struct objc_object {
+
+    Class isa  OBJC_ISA_AVAILABILITY;
+
+};
+
+/// A pointer to an instance of a class.
+
+typedef struct objc_object *id;
+```
+
+向object发送消息时，Runtime库会根据object的isa指针找到这个实例object所属于的类，
+然后在类的方法列表以及父类方法列表寻找对应的方法运行。id是一个objc_object结构类型的指针，
+这个类型的对象能够转换成任何一种对象。
+
+然后再来看看消息发送的函数：objc_msgSend函数
+
+在引言中已经对objc_msgSend进行了一点介绍，看起来像是objc_msgSend返回了数据，其实objc_msgSend
+从不返回数据而是你的方法被调用后返回了数据。下面详细叙述下消息发送步骤：
+
+检测这个 selector 是不是要忽略的。比如 Mac OS X 开发，有了垃圾回收就不理会 retain,release 这些函数了。
+检测这个 target 是不是 nil 对象。ObjC 的特性是允许对一个 nil 对象执行任何一个方法不会 Crash，因为会被忽略掉。
+如果上面两个都过了，那就开始查找这个类的 IMP，先从 cache 里面找，完了找得到就跳到对应的函数去执行。
+如果 cache 找不到就找一下方法分发表。
+如果分发表找不到就到超类的分发表去找，一直找，直到找到NSObject类为止。
+如果还找不到就要开始进入动态方法解析了，后面会提到。
+
+后面还有：
+动态方法解析resolveThisMethodDynamically
+消息转发forwardingTargetForSelector
+
 
 ## 对runtime的理解
 1. 消息是如何转发的？
@@ -297,44 +334,6 @@ return new SampleB();
 在controller层，根据iPhone与iPad(独有UISplitViewController)的不同特点选择不同的viewController对象。
 在View层，可根据现实要求，来设计，其中以xib文件设计时，其设置其为universal。
 
-## UITableView的调优
-通常来说，在开发中注意以下问题，可以使列表滚动比较流畅，但是对于特别复杂的列表就需要做额外的优化处理：
-- 重用cell，设置好cellIdentifier
-- 重用header、footer view，设置好identifier
-- 若高度固定，直接使用rowHight；若不固定则使用heightForRowAtIndexPath代理方法
-- 缓存cell的高度、header/footer view的高度
-- 不要修改view的opaque，默认就是YES,表示不透明度
-- 不要动态添加子view到cell上，直接在初始时创建，然后做显示与隐藏操作
-- 尽量不要直接使用cornerRadius，采用镂空图或者Core Graphics API来绘制
-- 将I/O操作、复杂运算放到子线程中处理，再回到主线程更新UI
-
-如果列表比较复杂，对于上面的做好后，还是不够流畅，就需要通过线程s工具来检测哪些地方可以优化了。
-
-## 用Instrument优化动画性能的经历
-[iOS App性能优化](http://www.hrchen.com/2013/05/performance-with-instruments/)
-
-1. Separate by Thread: 每个线程应该分开考虑。只有这样你才能揪出那些大量占用CPU的"重"线程。
-2. Invert Call Tree: 从上倒下跟踪堆栈,这意味着你看到的表中的方法,将已从第0帧开始取样,
-这通常你是想要的,只有这样你才能看到CPU中话费时间最深的方法.也就是说FuncA{FunB{FunC}}
-勾选此项后堆栈以C->B-A 把调用层级最深的C显示在最外面。
-3. Hide System Libraries: 勾选此项你会显示你app的代码,这是非常有用的.
-因为通常你只关心cpu花在自己代码上的时间不是系统上的。
-4. Flatten Recursion: 递归函数, 每个堆栈跟踪一个条目。
-5. Top Functions: 一个函数花费的时间直接在该函数中的总和，以及在函数调用该函数所花费的时间的总时间。
-因此，如果函数A调用B，那么A的时间报告在A花费的时间加上B.花费的时间,这非常真有用，
-因为它可以让你每次下到调用堆栈时挑最大的时间数字，归零在你最耗时的方法。
-
-内存泄漏有两种泄漏。第一个是真正的内存泄漏，一个对象尚未被释放，但是不再被引用的了。
-因此，存储器不能被重新使用。第二类泄漏是比较麻烦一些。这就是所谓的“无界内存增长”。
-这发生在内存继续分配，并永远不会有机会被释放。如果永远这样下去你的程序占用的内存会无限大,
-当超过一定内存的话 会被系统的看门狗给kill掉。
-
-内存警告是ios处理app最好的方式，尤其是在内存越来越吃紧的时候,你需要清除一些内存。
-内存一直增长其实也不一定是你的代码出了问题,也有可能是UIKit 系统框架本身导致的。
-
-**内存泄露**
-这一类泄漏是前面提到的 - 当一个对象不再被引用时出现的那种,检测泄漏可以理解为一个很复杂的事情，
-但泄漏的工具记得已分配的所有对象，通过定期扫描每个对象以确定是否有任何不能从任何其他对象访问的。
 ## 对ARC的理解
 
 ARC是编译器帮我们完成的，我们不再手动添加retain、relase、autorelease，
@@ -476,9 +475,6 @@ retain+1，release-1，release-1 2
 一定要用对特性关键字，对于“内存泄漏”，一定要申请了要负责释放，要细心。
 关键字alloc 或new 生成的对象需要手动释放;
 设置正确的property属性，对于retain需要在合适的地方释放，
-
-## 如何对iOS设备进行性能测试?
-Profile-> Instruments ->Time Profiler
 
 ## Object C中创建线程的方法是什么?如果在主线程中执行代码，
 方法是什么?如果想延时执行代码、方法又是什么?
@@ -771,235 +767,7 @@ NSURLConnection主要用于网络访问，其中+ sendSynchronousRequest:returni
 是同步访问数据，即当前线程会阻塞，并等待request的返回的response，而– initWithRequest:delegate:
 使用的是异步加载，当其完成网络访问后，会通过delegate回到主线程，并其委托的对象。
 
-## 多线程
-多线程是个复杂的概念，按字面意思是同步完成多项任务，提高了资源的使用效率，从硬件、操作系统、应用软件
-不同的角度去看，多线程被赋予不同的内涵，对于硬件，现在市面上多数的CPU都是多核的，
-多核的CPU运算多线程更为出色;从操作系统角度，是多任务，现在用的主流操作系统都是多任务的，
-可以一边听歌、一边写博客;对于应用来说，多线程可以让应用有更快的回应，可以在网络下载时，
-同时响应用户的触摸操作。在iOS应用中，对多线程最初的理解，就是并发，它的含义是原来先做烧水，再摘菜，
-再炒菜的工作，会变成烧水的同时去摘菜，最后去炒菜。
-### iOS 中的多线程
-iOS中的多线程，是Cocoa框架下的多线程，通过Cocoa的封装，可以让我们更为方便的使用线程，
-做过C++的同学可能会对线程有更多的理解，比如线程的创立，信号量、共享变量有认识，Cocoa框架下会方便很多，
-它对线程做了封装，有些封装，可以让我们创建的对象，本身便拥有线程，也就是线程的对象化抽象，
-从而减少我们的工程，提供程序的健壮性。
 
-- GCD是(Grand Central Dispatch)的缩写 ，从系统级别提供的一个易用地多线程类库，具有运行时的特点，
-能充分利用多核心硬件。GCD的API接口为C语言的函数，函数参数中多数有Block，关于Block的使用参看这里，
-为我们提供强大的“接口”，对于GCD的使用参见本文
-- NSOperation与Queue
-NSOperation是一个抽象类，它封装了线程的细节实现，我们可以通过子类化该对象，加上NSQueue来同面向对象的思维，
-管理多线程程序。具体可参看这里：一个基于NSOperation的多线程网络访问的项目。
-- NSThread
-NSThread是一个控制线程执行的对象，它不如NSOperation抽象，通过它我们可以方便的得到一个线程，
-并控制它。但NSThread的线程之间的并发控制，是需要我们自己来控制的，可以通过NSCondition实现。
-
-参看 iOS多线程编程之NSThread的使用
-
-其他多线程
-
-在Cocoa的框架下，通知、Timer和异步函数等都有使用多线程，(待补充).
-### 在项目什么时候选择使用GCD，什么时候选择NSOperation?
-项目中使用NSOperation的优点是NSOperation是对线程的高度抽象，在项目中使用它，会使项目的程序结构更好，
-子类化NSOperation的设计思路，是具有面向对象的优点(复用、封装)，使得实现是多线程支持，而接口简单，
-建议在复杂项目中使用。
-项目中使用GCD的优点是GCD本身非常简单、易用，对于不复杂的多线程操作，会节省代码量，而Block参数的使用，
-会是代码更为易读，建议在简单项目中使用。
-
-## 常用的多线程处理方式及优缺点
-iOS有四种多线程编程的技术，分别是：NSThread，Cocoa NSOperation，GCD（全称：Grand Central Dispatch）,pthread。
-
-**四种方式的优缺点介绍:**
-
-1. NSThread优点：**NSThread 比其他两个轻量级**。
-缺点：需要自己管理线程的生命周期，线程同步。线程同步对数据的加锁会有一定的系统开销。
-
-2. Cocoa NSOperation优点:不需要关心线程管理， 数据同步的事情，可以把精力放在自己需要执行的操作上。
-Cocoa operation相关的类是NSOperation, NSOperationQueue.NSOperation是个抽象类,
-使用它必须用它的子类，可以实现它或者使用它定义好的两个子类: NSInvocationOperation和NSBlockOperation.
-创建NSOperation子类的对象，把对象添加到NSOperationQueue队列里执行。
-
-3. GCD(全优点)Grand Central dispatch(GCD)是Apple开发的一个多核编程的解决方案。
-在iOS4.0开始之后才能使用。GCD是一个替代NSThread, NSOperationQueue,NSInvocationOperation等技术的很高效强大的技术。
-
-4. pthread是一套通用的多线程API，适用于Linux\Windows\Unix,跨平台，可移植，使用C语言，
-生命周期需要程序员管理，IOS开发中使用很少。
-
-**GCD线程死锁**
-
-GCD 确实好用 ，很强大，相比NSOpretion 无法提供 取消任务的功能。
-如此强大的工具用不好可能会出现线程死锁。 如下代码：
-```objc
-- (void)viewDidLoad{
-[super viewDidLoad];     
-NSLog(@"=================4");
-dispatch_sync(dispatch_get_main_queue(),
-             ^{ NSLog(@"=================5"); });
-NSLog(@"=================6");
-}
-```
-
-**GCD Queue 分为三种：**
-1，The main queue ：主队列，主线程就是在个队列中。
-2，Global queues ： 全局并发队列。
-3，用户队列:是用函数 dispatch_queue_create创建的自定义队列
-
-**dispatch_sync 和 dispatch_async 区别：**
-
-dispatch_async(queue,block) async 异步队列，dispatch_async
-函数会立即返回, block会在后台异步执行。
-
-dispatch_sync(queue,block) sync 同步队列，dispatch_sync
-函数不会立即返回，及阻塞当前线程,等待 block同步执行完成。
-
-**分析上面代码：**
-viewDidLoad 在主线程中， 及在dispatch_get_main_queue() 中，执行到sync 时 向
-dispatch_get_main_queue()插入 同步 threed。sync 会等到 后面block 执行完成才返回， sync 又再 dispatch_get_main_queue() 队列中，它是串行队列，sync 是后加入的，前一个是主线程，所以 sync 想执行 block 必须等待主线程执行完成，主线程等待 sync 返回，去执行后续内容。照成死锁，sync 等待mainThread 执行完成， mianThread 等待sync 函数返回。下面例子：
-```objc
-- (void)viewDidLoad{
-[super viewDidLoad];
-dispatch_async(dispatch_get_global_queue(0, 0), ^{
-               NSLog(@"=================1");
-              dispatch_sync(dispatch_get_main_queue(), ^{
-              NSLog(@"=================2"); });
-NSLog(@"=================3"); });
-}
-```
-程序会完成执行，为什么不会出现死锁。
-首先： async 在主线程中 创建了一个异步线程 加入 全局并发队列，async 不会等待block 执行完成，立即返回，
-1，async 立即返回， viewDidLoad 执行完毕，及主线程执行完毕。
-2，同时，全局并发队列立即执行异步 block ， 打印 1， 当执行到 sync 它会等待 block 执行完成才返回，
- 及等待dispatch_get_main_queue() 队列中的 mianThread 执行完成， 然后才开始调用block 。
- 因为1 和 2 几乎同时执行，因为2 在全局并发队列上， 2 中执行到sync 时 1 可能已经执行完成或 等了一会，
- mainThread 很快退出， 2 等已执行后继续内容。如果阻塞了主线程，2 中的sync 就无法执行啦，
- mainThread 永远不会退出， sync 就永远等待着。
-
-
-###  线程与进程的区别和联系?
-1). 进程和线程都是由操作系统所体会的程序运行的基本单元，系统利用该基本单元实现系统对应用的并发性
-
-2). 进程和线程的主要差别在于它们是不同的操作系统资源管理方式。
-
-3). 进程有独立的地址空间，一个进程崩溃后，在保护模式下不会对其它进程产生影响，
-而线程只是一个进程中的不同执行路径。
-
-4.)线程有自己的堆栈和局部变量，但线程之间没有单独的地址空间，一个线程死掉就等于整个进程死掉。
-所以多进程的程序要比多线程的程序健壮，但在进程切换时，耗费资源较大，效率要差一些。
-
-5). 但对于一些要求同时进行并且又要共享某些变量的并发操作，只能用线程，不能用进程。
-
-进程，是并发执行的程序在执行过程中分配和管理资源的基本单位，是一个动态概念，竟争计算机系统资源的基本单位。
-每一个进程都有一个自己的地址空间，即进程空间或（虚空间）。进程空间的大小 只与处理机的位数有关，
-一个 16 位长处理机的进程空间大小为 216 ，而 32 位处理机的进程空间大小为 232 。
-进程至少有 5 种基本状态，它们是：初始态，执行态，等待状态，就绪状态，终止状态。
-
-线程，在网络或多用户环境下，一个服务器通常需要接收大量且不确定数量用户的并发请求，
-为每一个请求都创建一个进程显然是行不通的，——无论是从系统资源开销方面或是响应用户请求的效率方面来看。
-因此，操作系统中线程的概念便被引进了。线程，是进程的一部分，一个没有线程的进程可以被看作是单线程的。
-线程有时又被称为轻权进程或轻量级进程，也是 CPU 调度的一个基本单位。
-
-**进程的执行过程是线状的**，尽管中间会发生中断或暂停，但该进程所拥有的资源只为该线状执行过程服务。
-一旦发生进程上下文切换，这些资源都是要被保护起来的。这是进程宏观上的执行过程。
-而进程又可有单线程进程与多线程进程两种。我们知道，进程有 一个进程控制块 PCB ，相关程序段 和
-该程序段对其进行操作的数据结构集 这三部分，单线程进程的执行过程在宏观上是线性的，
-微观上也只有单一的执行过程；而多线程进程在宏观上的执行过程同样为线性的，但微观上却可以有多个执行操作（线程），
-如不同代码片段以及相关的数据结构集。**线程的改变只代表了 CPU 执行过程的改变，
-而没有发生进程所拥有的资源变化**。除了 CPU 之外，**计算机内的软硬件资源的分配与线程无关**，
-线程只能共享它所属进程的资源。与进程控制表和 PCB 相似，每个线程也有自己的线程控制表 TCB ，
-而这个 TCB 中所保存的线程状态信息则要比 PCB 表少得多，这些信息主要是相关指针用堆栈（系统栈和用户栈），
-寄存器中的状态数据。**进程拥有一个完整的虚拟地址空间，不依赖于线程而独立存在；反之，线程是进程的一部分，
-没有自己的地址空间，与进程内的其他线程一起共享分配给该进程的所有资源**。
-
-线程可以有效地提高系统的执行效率，但并不是在所有计算机系统中都是适用的，如某些很少做进程调度和切换的实时系统。
-使用线程的好处是有多个任务需要处理机处理时，减少处理机的切换时间；而且，
-线程的创建和结束所需要的系统开销也比进程的创建和结束要小得多。最适用使用线程的系统是多处理机系统和网络系统或分布式系统。
-
-
-###  列举几种进程的同步机制，并比较其优缺点。
- 原子操作 ?信号量机制 ? ?自旋锁 ? ?管程，会合，分布式系统
-### 进程之间通信的途径
-共享存储系统消息传递系统管道：以文件系统为基础
-### 进程死锁的原因
-资源竞争及进程推进顺序非法
-### 死锁的4个必要条件
-互斥、请求保持、不可剥夺、环路
-### 死锁的处理
-鸵鸟策略、预防策略、避免策略、检测与解除死锁
-
-### 说出几种锁，介绍其区别
-
-## Object-C有私有方法吗？私有变量呢？
-objective-c – 类里面的方法只有两种, 静态方法和实例方法. 这似乎就不是完整的面向对象了,
-按照OO的原则就是一个对象只暴露有用的东西. 如果没有了私有方法的话, 对于一些小范围的代码重用就不那么顺手了.
-在类里面声名一个私有方法
-```objc
-@interface?Controller?:?NSObject?{?NSString?*something;?}
-+?(void)thisIsAStaticMethod;
-–?(void)thisIsAnInstanceMethod;
-@end
-@interface?Controller?(private)?-
-(void)thisIsAPrivateMethod;
-@end
-@private可以用来修饰私有变量
-
-```
-
-在Objective‐C中，所有实例变量默认都是私有的，所有实例方法默认都是公有的
-
-## C和obj-c 如何混用
-1. obj-c的编译器处理后缀为m的文件时，可以识别obj-c和c的代码，处理mm文件可以识别obj-c,c,c++代码，
-但cpp文件必须只能用c/c++代码，而且cpp文件include的头文件中，也不能出现obj-c的代码，因为cpp只是cpp
-2. 在mm文件中混用cpp直接使用即可，所以obj-c混cpp不是问题
-3. 在cpp中混用obj-c其实就是使用obj-c编写的模块是我们想要的。
-
-如果模块以类实现，那么要按照cpp class的标准写类的定义，头文件中不能出现obj-c的东西，
-包括#import cocoa的。实现文件中，即类的实现代码中可以使用obj-c的东西，可以import,只是后缀是mm。
-如果模块以函数实现，那么头文件要按c的格式声明函数，实现文件中，c++函数内部可以用obj-c，但后缀还是mm或m。
-> 总结：只要cpp文件和cpp include的文件中不包含obj-c的东西就可以用了，cpp混用obj-c的关键是使用接口，
-而不能直接使用 实现代 码，实际上cpp混用的是obj-c编译后的o文件，这个东西其实是无差别的，所以可以用。obj-c的编译器支持cpp
-
-## Objective-C堆和栈的区别？
-
-- 管理方式：对于栈来讲，是由编译器自动管理，无需我们手工控制；对于堆来说，释放工作由程序员控制，
-容易产生memory leak。
-
-- 申请大小：
-
-**栈**：在Windows下,栈是向低地址扩展的数据结构，是一块连续的内存的区域。
-这句话的意思是栈顶的地址和栈的最大容量是系统预先规定好的，在 WINDOWS下，栈的大小是2M
-（也有的说是1M，总之是一个编译时就确定的常数），如果申请的空间超过栈的剩余空间时，将提示overflow。
-因 此，能从栈获得的空间较小。
-
-**堆**：堆是向高地址扩展的数据结构，是不连续的内存区域。这是由于系统是用链表来存储的空闲内存地址的，
-自然是不连续的，而链表的遍历方向是由低地址向高地址。堆的大小受限于计算机系统中有效的虚拟内存。由此可见，
-堆获得的空间比较灵活，也比较大。
-
-- 碎片问题：对于堆来讲，频繁的new/delete势必会造成内存空间的不连续，从而造成大量的碎片，
-使程序效率降低。对于栈来讲，则不会存在这个问题，因为栈是先进后出的队列，他们是如此的一一对应，
-以至于永远都不可能有一个内存块从栈中间弹出
-
-- 分配方式：堆都是动态分配的，没有静态分配的堆。栈有2种分配方式：静态分配和动态分配。
-静态分配是编译器完成的，比如局部变量的分配。动态分配由alloca函数进行分配，但是栈的动态分配和堆是不同的，
-他的动态分配是由编译器进行释放，无需我们手工实现。
-
-- 分配效率：栈是机器系统提供的数据结构，计算机会在底层对栈提供支持：分配专门的寄存器存放栈的地址，
-压栈出栈都有专门的指令执行，这就决定了栈的效率比较高。堆则是C/C++函数库提供的，它的机制是很复杂的。
-
-## 设计一种内存管理算法。
-
-## 简述内存分区情况
-1).代码区：存放函数二进制代码
-
-2).数据区：系统运行时申请内存并初始化，系统退出时由系统释放。存放全局变量、静态变量、常量
-
-3).堆区：通过malloc等函数或new等操作符动态申请得到，需程序员手动申请和释放
-
-4).栈区：函数模块内申请，函数结束时由系统自动释放。存放局部变量、函数参数
-
-### 队列和栈有什么区别
-队列和栈是两种不同的数据容器。从”数据结构”的角度看，它们都是线性结构，即数据元素之间的关系相同。
-队列是一种先进先出的数据结构，它在两端进行操作，一端进行入队列操作，一端进行出列队操作。
-栈是一种先进后出的数据结构，它只能在栈顶进行操作，入栈和出栈都在栈顶操作。
 
 ## ViewController的didReceiveMemoryWarning怎么被调用：
 `[supper didReceiveMemoryWarning];`
@@ -1145,190 +913,29 @@ Core Data：提供了一个面向对象的数据管理解决方案，它易于�
 
 ## Objective-C的优缺点。
 objc优点：
-
-1). ?Cateogies
-
-2). ?Posing
-
-3). 动态识别
-
-4).指标计算
-
-5).弹性讯息传递
-
-6).不是一个过度复杂的 C 衍生语言
-
-7).Objective-C 与 C++ 可混合编程
-
+1. Cateogies
+2. ?Posing
+3. 动态识别
+4. 指标计算
+5. 弹性讯息传递
+6. 不是一个过度复杂的 C 衍生语言
+7. Objective-C 与 C++ 可混合编程
 objc缺点:
-
-1).不支援命名空间
-
-2).不支持运算符重载
-
-3).不支持多重继承
-
-4).使用动态运行时类型，所有的方法都是函数调用，所以很多编译时优化方法都用不到。（如内联函数等），性能低劣。
+1. 不支援命名空间
+2. 不支持运算符重载
+3. 不支持多重继承
+4. 使用动态运行时类型，所有的方法都是函数调用，所以很多编译时优化方法都用不到。（如内联函数等），性能低劣。
 
 ## sprintf,strcpy,memcpy使用上有什么要注意的地方。
-1). sprintf是格式化函数。将一段数据通过特定的格式，格式化到一个字符串缓冲区中去。
+1. sprintf是格式化函数。将一段数据通过特定的格式，格式化到一个字符串缓冲区中去。
 sprintf格式化的函数的长度不可控，有可能格式化后的字符串会超出缓冲区的大小，造成溢出。
-
-2).strcpy是一个字符串拷贝的函数，它的函数原型为strcpy(char *dst, const char *src
-
+2. strcpy是一个字符串拷贝的函数，它的函数原型为strcpy(char *dst, const char *src
 将src开始的一段字符串拷贝到dst开始的内存中去，结束的标志符号为 ‘\0'，由于拷贝的长度不是由我们自己控制的，
 所以这个字符串拷贝很容易出错。
-
-3). memcpy是具备字符串拷贝功能的函数，这是一个内存拷贝函数，它的函数原型
+3. memcpy是具备字符串拷贝功能的函数，这是一个内存拷贝函数，它的函数原型
 为memcpy(char *dst, const char* src, unsigned int len);将长度为len的一段内存，
 从src拷贝到dst中去，这个函数的长度可控。但是会有内存叠加的问题。
 
-## http和scoket通信的区别
-http是客户端用http协议进行请求，发送请求时候需要封装http请求头，并绑定请求的数据，
-服务器一般有web服务器配合（当然也非绝对）。 http请求方式为客户端主动发起请求，服务器才能给响应，
-一次请求完毕后则断开连接，以节省资源。服务器不能主动给客户端响应（除非采取http长连接 技术）。
-iphone主要使用类是NSUrlConnection。
-
-scoket是客户端跟服务器直接使用socket“套接字”进行连接，并没有规定连接后断开，
-所以客户端和服务器可以保持连接通道，双方 都可以主动发送数据。一般在游戏开发或股票开发这种要求
-即时性很强并且保持发送数据量比较大的场合使用。主要使用类是CFSocketRef。
-
-## iOS中socket使用
-Socket是对TCP/IP协议的封装，Socket本身并不是协议，而是一个调用接口（API），通过Socket，
-我们才能使用TCP/IP协议。
-
-http协议 对应于应用层
-tcp协议 对应于传输层
-ip协议 对应于网络层
-三者本质上没有可比性。 何况HTTP协议是基于TCP连接的。
-
-TCP/IP是传输层协议，主要解决数据如何在网络中传输；而HTTP是应用层协议，主要解决如何包装数据。
-
-我 们在传输数据时，可以只使用传输层（TCP/IP），但是那样的话，由于没有应用层，便无法识别数据内容，
-如果想要使传输的数据有意义，则必须使用应用层 协议，应用层协议很多，有HTTP、FTP、TELNET等等，
-也可以自己定义应用层协议。WEB使用HTTP作传输层协议，以封装HTTP文本信息，然 后使用TCP/IP做传输层协议将它发送到网络上。
-
-**SOCKET原理**
-1. 套接字（socket）概念
-套接字（socket）是通信的基石，是支持TCP/IP协议的网络通信的基本操作单元。
-它是网络通信过程中端点的抽象表示，包含进行网络通信必须的五种信息：连接使用的协议，本地主机的IP地址，
-本地进程的协议端口，远地主机的IP地址，远地进程的协议端口。
-
-应 用层通过传输层进行数据通信时，TCP会遇到同时为多个应用程序进程提供并发服务的问题。
-多个TCP连接或多个应用程序进程可能需要通过同一个 TCP协议端口传输数据。为了区别不同的应用程序进程和连接，
-许多计算机操作系统为应用程序与TCP／IP协议交互提供了套接字(Socket)接口。应用层可以和传输层通过Socket接口，
-区分来自不同应用程序进程或网络连接的通信，实现数据传输的并发服务。
-
-2. 建立socket连接
-建立Socket连接至少需要一对套接字，其中一个运行于客户端，称为ClientSocket，另一个运行于服务器端，
-称为ServerSocket。
-
-套接字之间的连接过程分为三个步骤：服务器监听，客户端请求，连接确认。
-
-服务器监听：服务器端套接字并不定位具体的客户端套接字，而是处于等待连接的状态，实时监控网络状态，
-等待客户端的连接请求。
-
-客户端请求：指客户端的套接字提出连接请求，要连接的目标是服务器端的套接字。为此，
-客户端的套接字必须首先描述它要连接的服务器的套接字，指出服务器端套接字的地址和端口号，
-然后就向服务器端套接字提出连接请求。
-
-连 接确认：当服务器端套接字监听到或者说接收到客户端套接字的连接请求时，就响应客户端套接字的请求，
-建立一个新的线程，把服务器端套接字的描述发给客户 端，一旦客户端确认了此描述，双方就正式建立连接。
-而服务器端套接字继续处于监听状态，继续接收其他客户端套接字的连接请求。
-
-3. SOCKET连接与TCP连接
-创建Socket连接时，可以指定使用的传输层协议，Socket可以支持不同的传输层协议（TCP或UDP），
-当使用TCP协议进行连接时，该Socket连接就是一个TCP连接。
-
-4. Socket连接与HTTP连接
-由 于通常情况下Socket连接就是TCP连接，因此Socket连接一旦建立，通信双方即可开始相互发送数据内容，
-直到双方连接断开。但在实际网络应用 中，客户端到服务器之间的通信往往需要穿越多个中间节点，
-例如路由器、网关、防火墙等，大部分防火墙默认会关闭长时间处于非活跃状态的连接而导致 Socket 连接断连，
-因此需要通过轮询告诉网络，该连接处于活跃状态。
-
-而HTTP连接使用的是“请求—响应”的方式，不仅在请求时需要先建立连接，而且需要客户端向服务器发出请求后，
-服务器端才能回复数据。
-
-很 多情况下，需要服务器端主动向客户端推送数据，保持客户端与服务器数据的实时与同步。
-此时若双方建立的是Socket连接，服务器就可以直接将数据传送给 客户端；若双方建立的是HTTP连接，
-则服务器需要等到客户端发送一次请求后才能将数据传回给客户端，因此，客户端定时向服务器端发送连接请求，
-不仅可以 保持在线，同时也是在“询问”服务器是否有新的数据，如果有就将数据传给客户端。
-
-[Socket使用简明教程－ AsyncSocket](http://my.oschina.net/joanfen/blog/287238)
-
-### CFSocket使用有哪几个步骤。
-创建 Socket 的上下文；创建 Socket ；配置要访问的服务器信息；封装服务器信息；连接服务器；
-### Core Foundation中提供了哪几种操作Socket的方法？
-CFNetwork 、 CFSocket 和 BSD Socket
-### HTTP协议中，POST和GET的区别是什么？
-1).GET 方法
-
-GET 方法提交数据不安全，数据置于请求行，客户端地址栏可见;
-
-GET 方法提交的数据大小有限
-
-GET 方法不可以设置书签
-
-2).POST 方法
-
-POST 方法提交数据安全，数据置于消息主体内，客户端不可见
-
-POST 方法提交的数据大小没有限制
-
-POST 方法可以设置书签
-
-1. GET请求的数据会附在URL之后（就是把数据放置在HTTP协议头中），以?分割URL和传输数据，
-参数之间以&相连，如：login.action?name=hyddd&password=idontknow&verify=%E4%BD%A0%E5%A5%BD。
-如果数据是英文字母/数字，原样发送，如果是空格，转换为+，如果是中文/其他字符，则直接把字符串用BASE64加密，
-得出如：%E4%BD%A0%E5%A5%BD，其中％XX中的XX为该符号以16进制表示的ASCII。
-　　POST把提交的数据则放置在是HTTP包的包体中。
-
-2. ”GET方式提交的数据最多只能是1024字节，理论上POST没有限制，可传较大量的数据，IIS4中最大为80KB，IIS5中为100KB”？？！
-
-　　以上这句是我从其他文章转过来的，其实这样说是错误的，不准确的：
-
-　　(1).首先是”GET方式提交的数据最多只能是1024字节”，因为GET是通过URL提交数据，
-那么GET可提交的数据量就跟URL的长度有直接关系了。而实际上，URL不存在参数上限的问题，
-HTTP协议规范没有对URL长度进行限制。这个限制是特定的浏览器及服务器对它的限制。
-IE对URL长度的限制是2083字节(2K+35)。对于其他浏览器，如Netscape、FireFox等，理论上没有长度限制，
-其限制取决于操作系统的支持。
-
-　　注意这是限制是整个URL长度，而不仅仅是你的参数值数据长度。[见参考资料5]
-
-　　(2).理论上讲，POST是没有大小限制的，HTTP协议规范也没有进行大小限制，
-说“POST数据量存在80K/100K的大小限制”是不准确的，POST数据是没有限制的，起限制作用的是服务器的处理程序的处理能力。
-
-3.在ASP中，服务端获取GET请求参数用Request.QueryString，获取POST请求参数用Request.Form。
-在JSP中，用request.getParameter(\”XXXX\”)来获取，虽然jsp中也有request.getQueryString()方法，
-但使用起来比较麻烦，比如：传一个test.jsp?name=hyddd&password=hyddd，
-用request.getQueryString()得到的是：name=hyddd&password=hyddd。在PHP中，
-可以用GET和_POST分别获取GET和POST中的数据，而REQUEST则可以获取GET和POST两种请求中的数据。
-值得注意的是，JSP中使用request和PHP中使用_REQUEST都会有隐患，这个下次再写个文章总结。
-
-4.POST的安全性要比GET的安全性高。注意：这里所说的安全性和上面GET提到的“安全”不是同个概念。
-上面“安全”的含义仅仅是不作数据修改，而这里安全的含义是真正的Security的含义，
-比如：通过GET提交数据，用户名和密码将明文出现在URL上，因为(1)登录页面有可能被浏览器缓存，
-(2)其他人查看浏览器的历史纪录，那么别人就可以拿到你的账号和密码了，除此之外，
-使用GET提交数据还可能会造成Cross-site request forgery攻击。
-
-总结一下，Get是向服务器发索取数据的一种请求，而Post是向服务器提交数据的一种请求，
-在FORM（表单）中，Method默认为”GET”，实质上，GET和POST只是发送机制不同，并不是一个取一个发！
-
-## TCP和UDP的区别
-TCP全称是Transmission Control Protocol，中文名为传输控制协议，它可以提供可靠的、
-面向连接的网络数据传递服务。传输控制协议主要包含下列任务和功能：
-
-* 确保IP数据报的成功传递。
-
-* 对程序发送的大块数据进行分段和重组。
-
-* 确保正确排序及按顺序传递分段的数据。
-
-* 通过计算校验和，进行传输数据的完整性检查。
-
-TCP提供的是面向连接的、可靠的数据流传输，而UDP提供的是非面向连接的、不可靠的数据流传输。
-
-简单的说，TCP注重数据安全，而UDP数据传输快点，但安全性一般
 
 ## 你了解svn,cvs等版本控制工具么？
 版本控制 svn,cvs 是两种版控制的器,需要配套相关的svn，cvs服务器。
@@ -1538,204 +1145,6 @@ __weak typedof(self)weakSelf = self
         weakSelf.data = responseData;
     }];
 ```
-
-## 为什么其他语言里叫函数调用， objective c里则是给对象发消息（或者谈下对runtime的理解）
-先来看看怎么理解发送消息的含义：
-
-曾经觉得Objc特别方便上手，面对着 Cocoa 中大量 API，只知道简单的查文档和调用。还记得初学
- Objective-C 时把[receiver message]当成简单的方法调用，而无视了“发送消息”这句话的深刻含义。
- 于是[receiver message]会被编译器转化为：
-objc_msgSend(receiver, selector)
-如果消息含有参数，则为：
-`objc_msgSend(receiver, selector, arg1, arg2, ...)`
-
-如果消息的接收者能够找到对应的selector，那么就相当于直接执行了接收者这个对象的特定方法；
-否则，消息要么被转发，或是临时向接收者动态添加这个selector对应的实现内容，要么就干脆玩完崩溃掉。
-
-现在可以看出[receiver message]真的不是一个简简单单的方法调用。因为这只是在编译阶段确定了
-要向接收者发送message这条消息，而receive将要如何响应这条消息，那就要看运行时发生的情况来决定了。
-
-Objective-C 的 Runtime 铸就了它动态语言的特性，这些深层次的知识虽然平时写代码用的少一些，
-但是却是每个 Objc 程序员需要了解的。
-
-Objc Runtime使得C具有了面向对象能力，在程序运行时创建，检查，修改类、对象和它们的方法。
-可以使用runtime的一系列方法实现。
-
-顺便附上OC中一个类的数据结构 /usr/include/objc/runtime.h
-
-```objc
-struct objc_class {
-    Class isa OBJC_ISA_AVAILABILITY; //isa指针指向Meta Class，
-    因为Objc的类的本身也是一个Object，为了处理这个关系，runtime就创造了Meta Class，
-    当给类发送[NSObject alloc]这样消息时，实际上是把这个消息发给了Class Object
-
-    #if !__OBJC2__
-    Class super_class OBJC2_UNAVAILABLE; // 父类
-    const char *name OBJC2_UNAVAILABLE; // 类名
-    long version OBJC2_UNAVAILABLE; // 类的版本信息，默认为0
-    long info OBJC2_UNAVAILABLE; // 类信息，供运行期使用的一些位标识
-    long instance_size OBJC2_UNAVAILABLE; // 该类的实例变量大小
-    struct objc_ivar_list *ivars OBJC2_UNAVAILABLE; // 该类的成员变量链表
-    struct objc_method_list **methodLists OBJC2_UNAVAILABLE; // 方法定义的链表
-    struct objc_cache *cache OBJC2_UNAVAILABLE; // 方法缓存，对象接到一个消息会根据isa
-    指针查找消息对象，这时会在method       Lists中遍历，如果cache了，常用的方法调用时就能够提高调用的效率。
-    struct objc_protocol_list *protocols OBJC2_UNAVAILABLE; // 协议链表
-    #endif
-
-    } OBJC2_UNAVAILABLE;
-```
-
-OC中一个类的对象实例的数据结构（/usr/include/objc/objc.h）:
-```objc
-typedef struct objc_class *Class;
-
-/// Represents an instance of a class.
-
-struct objc_object {
-
-    Class isa  OBJC_ISA_AVAILABILITY;
-
-};
-
-/// A pointer to an instance of a class.
-
-typedef struct objc_object *id;
-```
-
-向object发送消息时，Runtime库会根据object的isa指针找到这个实例object所属于的类，
-然后在类的方法列表以及父类方法列表寻找对应的方法运行。id是一个objc_object结构类型的指针，
-这个类型的对象能够转换成任何一种对象。
-
-然后再来看看消息发送的函数：objc_msgSend函数
-
-在引言中已经对objc_msgSend进行了一点介绍，看起来像是objc_msgSend返回了数据，其实objc_msgSend
-从不返回数据而是你的方法被调用后返回了数据。下面详细叙述下消息发送步骤：
-
-检测这个 selector 是不是要忽略的。比如 Mac OS X 开发，有了垃圾回收就不理会 retain,release 这些函数了。
-检测这个 target 是不是 nil 对象。ObjC 的特性是允许对一个 nil 对象执行任何一个方法不会 Crash，因为会被忽略掉。
-如果上面两个都过了，那就开始查找这个类的 IMP，先从 cache 里面找，完了找得到就跳到对应的函数去执行。
-如果 cache 找不到就找一下方法分发表。
-如果分发表找不到就到超类的分发表去找，一直找，直到找到NSObject类为止。
-如果还找不到就要开始进入动态方法解析了，后面会提到。
-
-后面还有：
-动态方法解析resolveThisMethodDynamically
-消息转发forwardingTargetForSelector
-
-## SDWebImage里面给UIImageView加载图片的逻辑是什么样的？
-### options所有选项：
-```objc
-//失败后重试
-     SDWebImageRetryFailed = 1 << 0,
-
-     //UI交互期间开始下载，导致延迟下载比如UIScrollView减速。
-     SDWebImageLowPriority = 1 << 1,
-
-     //只进行内存缓存
-     SDWebImageCacheMemoryOnly = 1 << 2,
-
-     //这个标志可以渐进式下载,显示的图像是逐步在下载
-     SDWebImageProgressiveDownload = 1 << 3,
-
-     //刷新缓存
-     SDWebImageRefreshCached = 1 << 4,
-
-     //后台下载
-     SDWebImageContinueInBackground = 1 << 5,
-
-     //NSMutableURLRequest.HTTPShouldHandleCookies = YES;
-
-     SDWebImageHandleCookies = 1 << 6,
-
-     //允许使用无效的SSL证书
-     //SDWebImageAllowInvalidSSLCertificates = 1 << 7,
-
-     //优先下载
-     SDWebImageHighPriority = 1 << 8,
-
-     //延迟占位符
-     SDWebImageDelayPlaceholder = 1 << 9,
-
-     //改变动画形象
-     SDWebImageTransformAnimatedImage = 1 << 10,
-```
-
-### SDWebImage内部实现过程
-1. 入口 setImageWithURL:placeholderImage:options: 会先把 placeholderImage 显示，
-然后 SDWebImageManager 根据 URL 开始处理图片。
-2. 进入 SDWebImageManager-downloadWithURL:delegate:options:userInfo:，
-交给 SDImageCache 从缓存查找图片是否已经下载        queryDiskCacheForKey:delegate:userInfo:.
-3. 先从内存图片缓存查找是否有图片，如果内存中已经有图片缓存，SDImageCacheDelegate 回调
-imageCache:didFindImage:forKey:userInfo: 到 SDWebImageManager。
-4. SDWebImageManagerDelegate 回调 webImageManager:didFinishWithImage: 到
-UIImageView+WebCache 等前端展示图片。
-5. 如果内存缓存中没有，生成 NSInvocationOperation 添加到队列开始从硬盘查找图片是否已经缓存。
-6. 根据 URLKey 在硬盘缓存目录下尝试读取图片文件。这一步是在 NSOperation 进行的操作，
-所以回主线程进行结果回调 notifyDelegate:。
-7. 如果上一操作从硬盘读取到了图片，将图片添加到内存缓存中（如果空闲内存过小，会先清空内存缓存）。
-SDImageCacheDelegate 回调 imageCache:didFindImage:forKey:userInfo:。进而回调展示图片。
-8. 如果从硬盘缓存目录读取不到图片，说明所有缓存都不存在该图片，需要下载图片，
-回调 imageCache:didNotFindImageForKey:userInfo:。
-9. 共享或重新生成一个下载器 SDWebImageDownloader 开始下载图片。
-10. 图片下载由 NSURLConnection 来做，实现相关 delegate 来判断图片下载中、下载完成和下载失败。
-11. connection:didReceiveData: 中利用 ImageIO 做了按图片下载进度加载效果。
-12. connectionDidFinishLoading: 数据下载完成后交给 SDWebImageDecoder 做图片解码处理。
-13. 图片解码处理在一个 NSOperationQueue 完成，不会拖慢主线程 UI。
-如果有需要对下载的图片进行二次处理，最好也在这里完成，效率会好很多。
-14. 在主线程 notifyDelegateOnMainThreadWithInfo: 宣告解码完成，imageDecoder:didFinishDecodingImage:userInfo: 回调给 SDWebImageDownloader。
-15. imageDownloader:didFinishWithImage: 回调给 SDWebImageManager 告知图片下载完成。
-16. 通知所有的 downloadDelegates 下载完成，回调给需要的地方展示图片。
-17. 将图片保存到 SDImageCache 中，内存缓存和硬盘缓存同时保存。
-写文件到硬盘也在以单独 NSInvocationOperation 完成，避免拖慢主线程。
-18. SDImageCache 在初始化的时候会注册一些消息通知，在内存警告或退到后台的时候清理内存图片缓存，
-应用结束的时候清理过期图片。
-19. SDWI 也提供了 UIButton+WebCache 和 MKAnnotationView+WebCache，方便使用。
-20. SDWebImagePrefetcher 可以预先下载图片，方便后续使用。
-
-从上面流程可以看出，当你调用setImageWithURL:方法的时候，他会自动去给你干这么多事，
-当你需要在某一具体时刻做事情的时候，你可以覆盖这些方法。比如在下载某个图片的过程中要响应一个事件，就覆盖这个方法：
-```objc
-//覆盖方法，指哪打哪，这个方法是下载imagePath2的时候响应
-    SDWebImageManager *manager = [SDWebImageManager sharedManager];
-
-    [manager downloadImageWithURL:imagePath2 options:SDWebImageRetryFailed progress:^(NSInteger receivedSize, NSInteger expectedSize) {
-
-        NSLog(@"显示当前进度");
-
-    } completed:^(UIImage *image, NSError *error, SDImageCacheType cacheType, BOOL finished, NSURL *imageURL) {
-
-        NSLog(@"下载完成");
-    }];
-```
-
-### SDWebImage库的作用
-通过对UIImageView的类别扩展来实现异步加载替换图片的工作。
-
-主要用到的对象：
-1. UIImageView (WebCache)类别，入口封装，实现读取图片完成后的回调
-2. SDWebImageManager，对图片进行管理的中转站，记录那些图片正在读取。
-向下层读取Cache（调用SDImageCache），或者向网络读取对象（调用SDWebImageDownloader） 。
-实现SDImageCache和SDWebImageDownloader的回调。
-3. SDImageCache，根据URL的MD5摘要对图片进行存储和读取（实现存在内存中或者存在硬盘上两种实现）
-实现图片和内存清理工作。
-4. SDWebImageDownloader，根据URL向网络读取数据（实现部分读取和全部读取后再通知回调两种方式）
-
-其他类：
-SDWebImageDecoder，异步对图像进行了一次解压⋯⋯
-1. SDImageCache是怎么做数据管理的?
-
-SDImageCache分两个部分，一个是内存层面的，一个是硬盘层面的。内存层面的相当是个缓存器，
-以Key-Value的形式存储图片。当内存不够的时候会清除所有缓存图片。用搜索文件系统的方式做管理，
-文件替换方式是以时间为单位，剔除时间大于一周的图片文件。当SDWebImageManager向SDImageCache要资源时，
-先搜索内存层面的数据，如果有直接返回，没有的话去访问磁盘，将图片从磁盘读取出来，然后做Decoder，
-将图片对象放到内存层面做备份，再返回调用层。
-
-2. 为啥必须做Decoder?
-由于UIImage的imageWithData函数是每次画图的时候才将Data解压成ARGB的图像，所以在每次画图的时候，
-会有一个解压操作，这样效率很低，但是只有瞬时的内存需求。为了提高效率通过SDWebImageDecoder将包装在Data下的资源解压，
-然后画在另外一张图片上，这样这张新图片就不再需要重复解压了。
-这种做法是典型的空间换时间的做法。
-
 
 ## 设计个简单的图片内存缓存器（移除策略是一定要说的）
 图片的内存缓存，可以考虑将图片数据保存到一个数据模型中。所以在程序运行时这个模型都存在内存中。
@@ -1955,207 +1364,6 @@ NSArray *arr = [NSArray arrayWithObjects:@"wang",@"zz",[NSNull null],@"foogry"];
 
 注意：NULL是C指针指向的值为空；nil是OC对象指针自己本身为空，不是值为空
 
-## 界面卡顿产生的原因和解决方案
-> iOS界面处理是在主线程下进行的，系统图形服务通过 CADisplayLink 等机制通知 App，App 主
-线程开始在 CPU 中计算显示内容，比如视图的创建、布局计算、图片解码、文本绘制等。随后 CPU 会
-将计算好的内容提交到 GPU 去，由 GPU 进行变换、合成、渲染。随后 GPU 会把渲染结果提交到帧缓冲区去，
-等待下一次刷新信号到来时显示到屏幕上。显示器通常以固定频率进行刷新，如果在一个刷新时间内，CPU 或者
-GPU 没有完成内容提交，则那一帧就会被丢弃，等待下一次机会再显示，而这时显示屏会保留之前的内容不变。
-这就是界面卡顿的原因。CPU 和 GPU 不论哪个阻碍了显示流程，都会造成掉帧现象。
-### CPU 资源消耗原因和解决方案
-#### 对象创建
-对象的创建会分配内存、调整属性、甚至还有读取文件等操作，比较消耗 CPU 资源。尽量用轻量的对象代替重量的对象，
-可以对性能有所优化。比如 CALayer 比 UIView 要轻量许多，那么不需要响应触摸事件的控件，
-用 CALayer 显示会更加合适。如果对象不涉及 UI 操作，则尽量放到后台线程去创建，但可惜的是包含有
-CALayer 的控件，都只能在主线程创建和操作。通过 Storyboard 创建视图对象时，
-其资源消耗会比直接通过代码创建对象要大非常多，在性能敏感的界面里，Storyboard 并不是一个好的技术选择。
-
-尽量推迟对象创建的时间，并把对象的创建分散到多个任务中去。尽管这实现起来比较麻烦，并且带来的优势并不多，
-但如果有能力做，还是要尽量尝试一下。如果对象可以复用，并且复用的代价比释放、创建新对象要小，
-那么这类对象应当尽量放到一个缓存池里复用。
-
-#### 对象调整
-对象的调整也经常是消耗 CPU 资源的地方。这里特别说一下 CALayer：CALayer 内部并没有属性，
-当调用属性方法时，它内部是通过运行时 resolveInstanceMethod 为对象临时添加一个方法，
-并把对应属性值保存到内部的一个 Dictionary 里，同时还会通知 delegate、创建动画等等，非常消耗资源。
-UIView 的关于显示相关的属性（比如 frame/bounds/transform）等实际上都是 CALayer 属性映射来的，
-所以对 UIView 的这些属性进行调整时，消耗的资源要远大于一般的属性。对此你在应用中，
-应该尽量减少不必要的属性修改。当视图层次调整时，UIView、CALayer 之间会出现很多方法调用与通知，
-所以在优化性能时，应该尽量避免调整视图层次、添加和移除视图。
-
-#### 对象销毁
-对象的销毁虽然消耗资源不多，但累积起来也是不容忽视的。通常当容器类持有大量对象时，
-其销毁时的资源消耗就非常明显。同样的，如果对象可以放到后台线程去释放，那就挪到后台线程去。
-这里有个小 Tip：把对象捕获到 block 中，然后扔到后台队列去随便发送个消息以避免编译器警告，
-就可以让对象在后台线程销毁了。
-```objc
-NSArray *tmp = self.array;
-self.array = nil;
-dispatch_async(queue, ^{
-[tmp class];
-});
-
-```
-#### 布局计算
-视图布局的计算是 App 中最为常见的消耗 CPU 资源的地方。如果能在后台线程提前计算好视图布局、
-并且对视图布局进行缓存，那么这个地方基本就不会产生性能问题了。
-
-不论通过何种技术对视图进行布局，其最终都会落到对 UIView.frame/bounds/center 等属性的调整上。
-上面也说过，对这些属性的调整非常消耗资源，所以尽量提前计算好布局，在需要时一次性调整好对应属性，
-而不要多次、频繁的计算和调整这些属性。
-
-#### Autolayout
-Autolayout 是苹果本身提倡的技术，在大部分情况下也能很好的提升开发效率，但是 Autolayout
-对于复杂视图来说常常会产生严重的性能问题。随着视图数量的增长，Autolayout 带来的 CPU 消耗会呈指数级上升。
-如果你不想手动调整 frame 等属性，你可以用一些工具方法替代（比如常见的 left/right/top/bottom/width/height 快捷属性，
-或者使用 ComponentKit、AsyncDisplayKit 等框架。
-
-#### 文本计算
-如果一个界面中包含大量文本（比如微博微信朋友圈等），文本的宽高计算会占用很大一部分资源，并且不可避免。
-如果你对文本显示没有特殊要求，
-可以参考下 UILabel 内部的实现方式：用 [NSAttributedString boundingRectWithSize:options:context:]
-来计算文本宽高，用 -[NSAttributedString drawWithRect:options:context:] 来绘制文本。
-尽管这两个方法性能不错，但仍旧需要放到后台线程进行以避免阻塞主线程。如果你用 CoreText 绘制文本，
-那就可以先生成 CoreText 排版对象，然后自己计算了，并且 CoreText 对象还能保留以供稍后绘制使用。
-
-#### 文本渲染
-屏幕上能看到的所有文本内容控件，包括 UIWebView，在底层都是通过 CoreText 排版、绘制为 Bitmap 显示的。
-常见的文本控件 （UILabel、UITextView 等），其排版和绘制都是在主线程进行的，当显示大量文本时，
-CPU 的压力会非常大。对此解决方案只有一个，那就是自定义文本控件，用 TextKit 或最底层的 CoreText 对文本异步绘制。
-尽管这实现起来非常麻烦，但其带来的优势也非常大，CoreText 对象创建好后，能直接获取文本的宽高等信息，
-避免了多次计算（调整 UILabel 大小时算一遍、UILabel 绘制时内部再算一遍）；CoreText 对象占用内存较少，
-可以缓存下来以备稍后多次渲染。
-
-#### 图片的解码
-当你用 UIImage 或 CGImageSource 的那几个方法创建图片时，图片数据并不会立刻解码。
-图片设置到UIImageView 或者 CALayer.contents 中去，并且 CALayer 被提交到 GPU 前，
-CGImage 中的数据才会得到解码。这一步是发生在主线程的，并且不可避免。如果想要绕开这个机制，
-常见的做法是在后台线程先把图片绘制到 CGBitmapContext 中，然后从 Bitmap 直接创建图片。
-目前常见的网络图片库都自带这个功能。
-
-#### 图像的绘制
-图像的绘制通常是指用那些以 CG 开头的方法把图像绘制到画布中，然后从画布创建图片并显示这样一个过程。
-这个最常见的地方就是 [UIView drawRect:] 里面了。由于 CoreGraphic 方法通常都是线程安全的，
-所以图像的绘制可以很容易的放到后台线程进行。一个简单异步绘制的过程大致如下（实际情况会比这个复杂得多，但原理基本一致）：
-```objc
-- (void)display {
-dispatch_async(backgroundQueue, ^{
-    CGContextRef ctx = CGBitmapContextCreate(...);
-    // draw in context...
-    CGImageRef img = CGBitmapContextCreateImage(ctx);
-    CFRelease(ctx);
-    dispatch_async(mainQueue, ^{
-        layer.contents = img;
-    });
-});
-}
-```
-### GPU资源消耗原因和解决方案
-相对于 CPU 来说，GPU 能干的事情比较单一：接收提交的纹理（Texture）和顶点描述（三角形），
-应用变换（transform）、混合并渲染，然后输出到屏幕上。通常你所能看到的内容，主要也就是纹理（图片）
-和形状（三角模拟的矢量图形）两类。
-
-#### 纹理的渲染
-所有的 Bitmap，包括图片、文本、栅格化的内容，最终都要由内存提交到显存，绑定为 GPU Texture。
-不论是提交到显存的过程，还是 GPU 调整和渲染 Texture 的过程，都要消耗不少 GPU 资源。
-当在较短时间显示大量图片时（比如 TableView 存在非常多的图片并且快速滑动时），CPU 占用率很低，
-GPU 占用非常高，界面仍然会掉帧。避免这种情况的方法只能是尽量减少在短时间内大量图片的显示，
-尽可能将多张图片合成为一张进行显示。
-
-当图片过大，超过 GPU 的最大纹理尺寸时，图片需要先由 CPU 进行预处理，这对 CPU 和 GPU
-都会带来额外的资源消耗。目前来说，iPhone 4S 以上机型，纹理尺寸上限都是 4096x4096，所以，
-尽量不要让图片和视图的大小超过这个值。
-
-#### 视图的混合 (Composing)
-当多个视图（或者说 CALayer）重叠在一起显示时，GPU 会首先把他们混合到一起。如果视图结构过于复杂，
-混合的过程也会消耗很多 GPU 资源。为了减轻这种情况的 GPU 消耗，应用应当尽量减少视图数量和层次，
-并在不透明的视图里标明 opaque 属性以避免无用的 Alpha 通道合成。当然，这也可以用上面的方法，
-把多个视图预先渲染为一张图片来显示。
-
-#### 图形的生成
-CALayer 的 border、圆角、阴影、遮罩（mask），CASharpLayer 的矢量图形显示，通常会触发离屏渲染
-（offscreen rendering），而离屏渲染通常发生在 GPU 中。当一个列表视图中出现大量圆角的 CALayer，
-并且快速滑动时，可以观察到 GPU 资源已经占满，而 CPU 资源消耗很少。这时界面仍然能正常滑动，
-但平均帧数会降到很低。为了避免这种情况，可以尝试开启 CALayer.shouldRasterize 属性，
-但这会把原本离屏渲染的操作转嫁到 CPU 上去。对于只需要圆角的某些场合，
-也可以用一张已经绘制好的圆角图片覆盖到原本视图上面来模拟相同的视觉效果。最彻底的解决办法，
-就是把需要显示的图形在后台线程绘制为图片，避免使用圆角、阴影、遮罩等属性。
-
-## 如何追踪app崩溃率，如何解决线上闪退
-当iOS设备上的App应用闪退时，操作系统会生成一个crash日志，保存在设备上。crash日志上有很多有用的信息，
-比如每个正在执行线程的完整堆栈跟踪信息和内存映像，这样就能够通过解析这些信息进而定位crash发生时的代码逻辑，
-从而找到App闪退的原因。通常来说，crash产生来源于两种问题：违反iOS系统规则导致的crash和App代码逻辑BUG导致的crash，
-下面分别对他们进行分析。
-
-### 违反iOS系统规则产生crash的三种类型
-
-(1) 内存报警闪退
-当iOS检测到内存过低时，它的VM系统会发出低内存警告通知，尝试回收一些内存；如果情况没有得到足够的改善，
-iOS会终止后台应用以回收更多内存；最后，如果内存还是不足，那么正在运行的应用可能会被终止掉。
-在Debug模式下，可以主动将客户端执行的动作逻辑写入一个log文件中，这样程序童鞋可以将内存预警的逻辑写入该log文件，
-当发生如下截图中的内存报警时，就是提醒当前客户端性能内存吃紧，可以通过Instruments工具中的Allocations
-和 Leaks模块库来发现内存分配问题和内存泄漏问题。
-
-(2) 响应超时
-当应用程序对一些特定的事件（比如启动、挂起、恢复、结束）响应不及时，苹果的Watchdog机制会把应用程序干掉，
-并生成一份相应的crash日志。这些事件与下列UIApplicationDelegate方法相对应，当遇到Watchdog日志时，
-可以检查上图中的几个方法是否有比较重的阻塞UI的动作。　
-```objc
-application:didFinishLaunchingWithOptions:　
-applicationWillResignActive:
-applicationDidEnterBackground:　
-applicationWillEnterForeground:
-applicationDidBecomeActive:
-applicationWillTerminate:
-```
-(3) 用户强制退出
-一看到“用户强制退出”，首先可能想到的双击Home键，然后关闭应用程序。不过这种场景一般是不会产生crash日志的，
-因为双击Home键后，所有的应用程序都处于后台状态，而iOS随时都有可能关闭后台进程，
-当应用阻塞界面并停止响应时这种场景才会产生crash日志。这里指的“用户强制退出”场景，
-是稍微比较复杂点的操作：先按住电源键，直到出现“滑动关机”的界面时，再按住Home键，
-这时候当前应用程序会被终止掉，并且产生一份相应事件的crash日志。
-
-### 应用逻辑的Bug
-大多数闪退崩溃日志的产生都是因为应用中的Bug，这种Bug的错误种类有很多，比如　　
-```objc
-SEGV：（Segmentation Violation，段违例），无效内存地址，比如空指针，未初始化指针，栈溢出等；
-  SIGABRT：收到Abort信号，可能自身调用abort()或者收到外部发送过来的信号；
-  SIGBUS：总线错误。与SIGSEGV不同的是，SIGSEGV访问的是无效地址（比如虚存映射不到物理内存），
-  而SIGBUS访问的是有效地址，但总线访问异常（比如地址对齐问题）；
-  SIGILL：尝试执行非法的指令，可能不被识别或者没有权限；
-  SIGFPE：Floating Point Error，数学计算相关问题（可能不限于浮点计算），比如除零操作；
-  SIGPIPE：管道另一端没有进程接手数据；
-```
-常见的崩溃原因基本都是代码逻辑问题或资源问题，比如数组越界，访问野指针或者资源不存在，或资源大小写错误等。
-
-### crash的收集
-
-如果是在windows上你可以通过itools或pp助手等辅助工具查看系统产生的历史crash日志，
-然后再根据app来查看。如果是在Mac 系统上，只需要打开xcode->windows->devices，选择device logs进行查看，
-如下图，这些crash文件都可以导出来，然后再单独对这个crash文件做处理分析。
-
-市场上已有的商业软件提供crash收集服务，这些软件基本都提供了日志存储，日志符号化解析和服务端可视化管理等服务：
-
-Crashlytics (www.crashlytics.com)
-Crittercism (www.crittercism.com)
-Bugsense (www.bugsense.com)　　
-HockeyApp (www.hockeyapp.net)　　
-Flurry(www.flurry.com)
-
-开源的软件也可以拿来收集crash日志，比如Razor,QuincyKit（git链接）等，
-这些软件收集crash的原理其实大同小异，都是根据系统产生的crash日志进行了一次提取或封装，
-然后将封装后的crash文件上传到对应的服务端进行解析处理。很多商业软件都采用了Plcrashreporter这个
-开源工具来上传和解析crash，比如HockeyApp,Flurry和crittercism等。
-
-由于自己的crash信息太长，找了一张示例：　　
-1)crash标识是应用进程产生crash时的一些标识信息，
-它描述了该crash的唯一标识（E838FEFB-ECF6-498C-8B35-D40F0F9FEAE4），
-所发生的硬件设备类型（iphone3,1代表iphone4），以及App进程相关的信息等；
-2）基本信息描述的是crash发生的时间和系统版本；　　
-3）异常类型描述的是crash发生时抛出的异常类型和错误码；　　
-4）线程回溯描述了crash发生时所有线程的回溯信息，每个线程在每一帧对应的函数调用信息（这里由于空间限制没有全部列出）；　　
-5）二进制映像是指crash发生时已加载的二进制文件。以上就是一份crash日志包含的所有信息，
-接下来就需要根据这些信息去解析定位导致crash发生的代码逻辑， 这就需要用到符号化解析的过程（洋名叫：symbolication)。
 
 ## 什么是事件响应链，点击屏幕时是如何互动的，事件的传递。
 对于IOS设备用户来说，他们操作设备的方式主要有三种：触摸屏幕、晃动设备、通过遥控设施控制设备。
@@ -2203,97 +1411,6 @@ hitTest:withEvent:方法的处理流程如下:首先调用当前视图的pointIn
 传递链：由系统向离用户最近的view传递。UIKit –> active app’s event queue –> window –> root view –>……–>lowest view
 响应链：由离用户最近的view向系统传递。initial view –> super view –> …..–> view controller –> window –> Application
 
-## Run Loop是什么，使用的目的，何时使用和关注点
-Run Loop是一让线程能随时处理事件但不退出的机制。RunLoop 实际上是一个对象，
-这个对象管理了其需要处理的事件和消息，并提供了一个入口函数来执行Event Loop 的逻辑。
-线程执行了这个函数后，就会一直处于这个函数内部 "接受消息->等待->处理" 的循环中，
-直到这个循环结束（比如传入 quit 的消息），函数返回。让线程在没有处理消息时休眠以避免资源占用、在有消息到来时立刻被唤醒。
-
-OSX/iOS 系统中，提供了两个这样的对象：NSRunLoop 和 CFRunLoopRef。CFRunLoopRef
-是在 CoreFoundation 框架内的，它提供了纯 C 函数的 API，所有这些 API 都是线程安全的。
-NSRunLoop 是基于 CFRunLoopRef 的封装，提供了面向对象的 API，但是这些 API 不是线程安全的。
-
-线程和 RunLoop 之间是一一对应的，其关系是保存在一个全局的 Dictionary 里。
-线程刚创建时并没有 RunLoop，如果你不主动获取，那它一直都不会有。RunLoop 的创建是发生在第一次获取时，
-RunLoop 的销毁是发生在线程结束时。你只能在一个线程的内部获取其 RunLoop（主线程除外）。
-
-**系统默认注册了5个Mode:**
-
-1. kCFRunLoopDefaultMode: App的默认 Mode，通常主线程是在这个 Mode 下运行的。
-2. UITrackingRunLoopMode: 界面跟踪 Mode，用于 ScrollView 追踪触摸滑动，保证界面滑动时不受其他 Mode 影响。
-3. UIInitializationRunLoopMode: 在刚启动 App 时第进入的第一个 Mode，启动完成后就不再使用。
-4. GSEventReceiveRunLoopMode: 接受系统事件的内部 Mode，通常用不到。
-5. kCFRunLoopCommonModes: 这是一个占位的 Mode，没有实际作用。
-
-**Run Loop的四个作用:**
-
-使程序一直运行接受用户输入
-决定程序在何时应该处理哪些Event
-调用解耦
-节省CPU时间
-
-主线程的run loop默认是启动的。iOS的应用程序里面，程序启动后会有一个如下的main() 函数：
-```objc
-int main(int argc, char *argv[])
- {
-        @autoreleasepool {
-          return UIApplicationMain(argc, argv, nil, NSStringFromClass([appDelegate class]));
-       }
-  }
-```
-重点是UIApplicationMain() 函数，这个方法会为main thread 设置一个NSRunLoop 对象，
-这就解释了本文开始说的为什么我们的应用可以在无人操作的时候休息，需要让它干活的时候又能立马响应。
-
-对其它线程来说，run loop默认是没有启动的，如果你需要更多的线程交互则可以手动配置和启动，
-如果线程只是去执行一个长时间的已确定的任务则不需要。在任何一个Cocoa程序的线程中，都可以通过：
-```objc
-NSRunLoop   *runloop = [NSRunLoop currentRunLoop];
-```
-来获取到当前线程的run loop。
-
-一个run loop就是一个事件处理循环，用来不停的监听和处理输入事件并将其分配到对应的目标上进行处理。
-
-NSRunLoop是一种更加高明的消息处理模式，他就高明在对消息处理过程进行了更好的抽象和封装，
-这样才能是的你不用处理一些很琐碎很低层次的具体消息的处理，在NSRunLoop中每一个消息就被打
-包在input source或者是timer source中了。使用run loop可以使你的线程在有工作的时候工作，
-没有工作的时候休眠，这可以大大节省系统资源。
-**什么时候使用runloop**
-仅当在为你的程序创建辅助线程的时候，你才需要显式运行一个run loop。Run loop是程序主线程基础设施的关键部分。
-所以，Cocoa和Carbon程序提供了代码运行主程序的循环并自动启动run loop。IOS程序中UIApplication的run方法
-（或Mac OS X中的NSApplication）作为程序启动步骤的一部分，它在程序正常启动的时候就会启动程序的主循环。
-类似的，RunApplicationEventLoop函数为Carbon程序启动主循环。如果你使用xcode提供的模板创建你的程序，
-那你永远不需要自己去显式的调用这些例程。
-
-对于辅助线程，你需要判断一个run loop是否是必须的。如果是必须的，那么你要自己配置并启动它。
-你不需要在任何情况下都去启动一个线程的run loop。比如，你使用线程来处理一个预先定义的长时间运行的任务时，
-你应该避免启动run loop。Run loop在你要和线程有更多的交互时才需要，比如以下情况：
-- 使用端口或自定义输入源来和其他线程通信
-- 使用线程的定时器
-- Cocoa中使用任何performSelector…的方法
-- 使线程周期性工作
-
-**关注点**
-1. Cocoa中的NSRunLoop类并不是线程安全的
-我们不能再一个线程中去操作另外一个线程的run loop对象，那很可能会造成意想不到的后果。
-不过幸运的是CoreFundation中的不透明类CFRunLoopRef是线程安全的，而且两种类型的run loop完全可以混合使用。
-Cocoa中的NSRunLoop类可以通过实例方法：
-```objc
-- (CFRunLoopRef)getCFRunLoop;
-```
-获取对应的CFRunLoopRef类，来达到线程安全的目的。
-2. Run loop的管理并不完全是自动的。
-我们仍必须设计线程代码以在适当的时候启动run loop并正确响应输入事件，当然前提是线程中需要用到run loop。
-而且，我们还需要使用while/for语句来驱动run loop能够循环运行，下面的代码就成功驱动了一个run loop：
-```objc
-BOOL isRunning = NO;
-do {
-     isRunning = [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode beforeDate:[NSDatedistantFuture]];
-} while (isRunning);
-```
-3. Run loop同时也负责autorelease pool的创建和释放
-在使用手动的内存管理方式的项目中，会经常用到很多自动释放的对象，如果这些对象不能够被即时释放掉，
-会造成内存占用量急剧增大。Run loop就为我们做了这样的工作，每当一个运行循环结束的时候，
-它都会释放一次autorelease pool，同时pool中的所有自动释放类型变量都会被释放掉。
 ##  ARC和MRC
 Objective-c中提供了两种内存管理机制MRC（MannulReference Counting）和ARC(Automatic Reference Counting)，
 分别提供对内存的手动和自动管理，来满足不同的需求。Xcode 4.1及其以前版本没有ARC。
@@ -2311,171 +1428,6 @@ retain和release方法操作的是引用记数，当引用记数为零时，便�
 其中assign/retain/copy与MRC下property的标识符意义相同，strong类似与retain,assign类似于unsafe_unretained，strong/weak/unsafe_unretained与ARC下变量标识符意义相同，只是一个用于属性的标识，
 一个用于变量的标识(带两个下划短线__)。所列出的其他的标识符与MRC下意义相同。
 
-## 大量数据表的优化方案
-1. 对查询进行优化，要尽量避免全表扫描，首先应考虑在 where 及 order by 涉及的列上建立索引。
-
-2. 应尽量避免在 where 子句中对字段进行 null 值判断，否则将导致引擎放弃使用索引而进行全表扫描，如：
-
- `select id from t where num is null`
-最好不要给数据库留NULL，尽可能的使用 NOT NULL填充数据库.
-
-备注、描述、评论之类的可以设置为 NULL，其他的，最好不要使用NULL。
-
-不要以为 NULL 不需要空间，比如：char(100) 型，在字段建立时，空间就固定了，
-不管是否插入值（NULL也包含在内），都是占用 100个字符的空间的，如果是varchar这样的变长字段， null 不占用空间。
-
-可以在num上设置默认值0，确保表中num列没有null值，然后这样查询：
-
-select id from t where num=0
-3. 应尽量避免在 where 子句中使用 != 或 <> 操作符，否则将引擎放弃使用索引而进行全表扫描。
-
-4. 应尽量避免在 where 子句中使用 or 来连接条件，如果一个字段有索引，一个字段没有索引，
-将导致引擎放弃使用索引而进行全表扫描，如：
-
- select id from t where num=10 or Name='admin'
-可以这样查询：
-
- select id from t where num=10 union all select id from t where Name='admin'
-5. in 和 not in 也要慎用，否则会导致全表扫描，如：
-
-select id from t where num in (1,2,3)
-对于连续的数值，能用 between 就不要用 in 了：
-
- select id from t where num between 1 and 3
-很多时候用 exists 代替 in 是一个好的选择：
-
- select num from a where num in (select num from b)
-用下面的语句替换：
-
- select num from a where exists (select 1 from b where num=a.num)
-6. 下面的查询也将导致全表扫描：
-
-select id from t where name like ‘%abc%’
-若要提高效率，可以考虑全文检索。
-
-7. 如果在 where 子句中使用参数，也会导致全表扫描。因为SQL只有在运行时才会解析局部变量，
-但优化程序不能将访问计划的选择推迟到运行时；它必须在编译时进行选择。然而，
-如果在编译时建立访问计划，变量的值还是未知的，因而无法作为索引选择的输入项。
-如下面语句将进行全表扫描：
-
-select id from t where num=@num
-可以改为强制查询使用索引：
-
-select id from t with (index(索引名)) where num=@num
-应尽量避免在 where 子句中对字段进行表达式操作，这将导致引擎放弃使用索引而进行全表扫描。如：
-
-select id from t where num/2=100
-应改为:
-
-select id from t where num=100*2
-8. 应尽量避免在where子句中对字段进行函数操作，这将导致引擎放弃使用索引而进行全表扫描。如：
-
- select id from t where substring(name,1,3)=’abc’ -–name以abc开头的id
- select id from t where datediff(day,createdate,’2015-11-30′)=0 -–‘2015-11-30’ --生成的id
-应改为:
-
-select id from t where name like'abc%'
-select id from t where createdate>='2005-11-30' and createdate<'2005-12-1'
-9. 不要在 where 子句中的“=”左边进行函数、算术运算或其他表达式运算，否则系统将可能无法正确使用索引。
-
-10. 在使用索引字段作为条件时，如果该索引是复合索引，
-那么必须使用到该索引中的第一个字段作为条件时才能保证系统使用该索引，否则该索引将不会被使用，
-并且应尽可能的让字段顺序与索引顺序相一致。
-
-11. 不要写一些没有意义的查询，如需要生成一个空表结构：
-
-select col1,col2 into #t from t where1=0
-这类代码不会返回任何结果集，但是会消耗系统资源的，应改成这样：
-
-create table #t(…)
-12. Update 语句，如果只更改1、2个字段，不要Update全部字段，否则频繁调用会引起明显的性能消耗，同时带来大量日志。
-
-13. 对于多张大数据量（这里几百条就算大了）的表JOIN，要先分页再JOIN，否则逻辑读会很高，性能很差。
-
-14. select count(*) from table；这样不带任何条件的count会引起全表扫描，并且没有任何业务意义，是一定要杜绝的。
-
-15. 索引并不是越多越好，索引固然可以提高相应的 select 的效率，
-但同时也降低了 insert 及 update 的效率，因为 insert 或 update 时有可能会重建索引，
-所以怎样建索引需要慎重考虑，视具体情况而定。一个表的索引数最好不要超过6个，
-若太多则应考虑一些不常使用到的列上建的索引是否有 必要。
-
-16. 应尽可能的避免更新 clustered 索引数据列，因为 clustered 索引数据列的顺序就是表记录的物理存储顺序，
-一旦该列值改变将导致整个表记录的顺序的调整，会耗费相当大的资源。若应用系统需要频繁更新 clustered 索引数据列，
-那么需要考虑是否应将该索引建为 clustered 索引。
-
-17. 尽量使用数字型字段，若只含数值信息的字段尽量不要设计为字符型，这会降低查询和连接的性能，
-并会增加存储开销。这是因为引擎在处理查询和连 接时会逐个比较字符串中每一个字符，
-而对于数字型而言只需要比较一次就够了。
-
-18. 尽可能的使用 varchar/nvarchar 代替 char/nchar ，因为首先变长字段存储空间小，
-可以节省存储空间，其次对于查询来说，在一个相对较小的字段内搜索效率显然要高些。
-
-19. 任何地方都不要使用
-
-  select * from t
-用具体的字段列表代替“*”，不要返回用不到的任何字段。
-
-20. 尽量使用表变量来代替临时表。如果表变量包含大量数据，请注意索引非常有限（只有主键索引）。
-
-21. 避免频繁创建和删除临时表，以减少系统表资源的消耗。临时表并不是不可使用，
-适当地使用它们可以使某些例程更有效，例如，当需要重复引用大型表或常用表中的某个数据集时。
-但是，对于一次性事件， 最好使用导出表。
-
-22. 在新建临时表时，如果一次性插入数据量很大，那么可以使用 select into 代替 create table，
-避免造成大量 log ，以提高速度；如果数据量不大，为了缓和系统表的资源，应先create table，然后insert。
-
-23. 如果使用到了临时表，在存储过程的最后务必将所有的临时表显式删除，先 truncate table ，
-然后 drop table ，这样可以避免系统表的较长时间锁定。
-
-24. 尽量避免使用游标，因为游标的效率较差，如果游标操作的数据超过1万行，那么就应该考虑改写。
-
-25. 使用基于游标的方法或临时表方法之前，应先寻找基于集的解决方案来解决问题，基于集的方法通常更有效。
-
-26. 与临时表一样，游标并不是不可使用。对小型数据集使用 FAST_FORWARD 游标通常要优于其他逐行处理方法，
-尤其是在必须引用几个表才能获得所需的数据时。在结果集中包括“合计”的例程通常要比使用游标执行的速度快。
-如果开发时 间允许，基于游标的方法和基于集的方法都可以尝试一下，看哪一种方法的效果更好。
-
-27. 在所有的存储过程和触发器的开始处设置 SET NOCOUNT ON ，在结束时设置 SET NOCOUNT OFF 。
-无需在执行存储过程和触发器的每个语句后向客户端发送 DONE_IN_PROC 消息。
-
-28. 尽量避免大事务操作，提高系统并发能力。
-
-29. 尽量避免向客户端返回大数据量，若数据量过大，应该考虑相应需求是否合理。
-
-实际案例分析：拆分大的 DELETE 或INSERT 语句，批量提交SQL语句
-
-如果你需要在一个在线的网站上去执行一个大的 DELETE 或 INSERT 查询，你需要非常小心，
-要避免你的操作让你的整个网站停止相应。因为这两个操作是会锁表的，表一锁住了，别的操作都进不来了。
-
-Apache 会有很多的子进程或线程。所以，其工作起来相当有效率，而我们的服务器也不希望有太多的子进程，
-线程和数据库链接，这是极大的占服务器资源的事情，尤其是内存。
-
-如果你把你的表锁上一段时间，比如30秒钟，那么对于一个有很高访问量的站点来说，这30秒所积累的访问进程/线程，
-数据库链接，打开的文件数，可能不仅仅会让你的WEB服务崩溃，还可能会让你的整台服务器马上挂了。
-
-所以，如果你有一个大的处理，你一定把其拆分，使用 LIMIT oracle(rownum),
-sqlserver(top)条件是一个好的方法。下面是一个mysql示例：
-
-## Restful架构
-REST是一种架构风格，其核心是面向资源，REST专门针对网络应用设计和开发方式，以降低开发的复杂性，
-提高系统的可伸缩性。REST提出设计概念和准则为：
-```objc
-1. 网络上的所有事物都可以被抽象为资源(resource)
-2. 每一个资源都有唯一的资源标识(resource identifier)，对资源的操作不会改变这些标识
-3. 所有的操作都是无状态的
-```
-REST简化开发，其架构遵循CRUD原则，该原则告诉我们对于资源(包括网络资源)只需要四种行为：创建，获取，
-更新和删除就可以完成相关的操作和处理。
-您可以通过统一资源标识符（Universal Resource Identifier，URI）来识别和定位资源，
-并且针对这些资源而执行的操作是通过 HTTP 规范定义的。其核心操作只有GET,PUT,POST,DELETE。
-
-由于REST强制所有的操作都必须是stateless的，这就没有上下文的约束，如果做分布式，
-集群都不需要考虑上下文和会话保持的问题。极大的提高系统的可伸缩性。
-
-RESTful架构：
-　　（1）每一个URI代表一种资源；
-　　（2）客户端和服务器之间，传递这种资源的某种表现层；
-　　（3）客户端通过四个HTTP动词，对服务器端资源进行操作，实现"表现层状态转化"。
 
 ## 写一个单例模式
 ```objc
@@ -2634,27 +1586,6 @@ NSLog(@"%@",[[userInfo objectForKey:@"aps"] objectForKey:@"alert"]):
 在后台的推送程序中使用发布版制作的证书并使用该deviceToken做推送服务.
 使用开发和发布证书获取到的deviceToken是不一样的。
 
-## 支付宝SDK使用
-使用支付宝进行一个完整的支付功能，大致有以下步骤：向支付宝申请, 与支付宝签约，
-获得商户ID（partner）和账号ID（seller）和私钥(privateKey)。下载支付宝SDK，生成订单信息,
-签名加密调用支付宝客户端，由支付宝客户端跟支付宝安全服务器打交道。支付完毕后,
-支付宝客户端会自动跳回到原来的应用程序，在原来的应用程序中显示支付结果给用户看。
-**集成之后可能遇到的问题**
-1. 集成SDK编译时找不到 openssl/asn1.h 文件
-解决方案：Build Settings --> Search Paths --> Header Search paths : $(SRCROOT)/支付宝集成/Classes/Alipay
-2. 链接时：找不到 SystemConfiguration.framework 这个库
-解决方案：打开支付宝客户端进行支付(用户没有安装支付宝客户端,直接在应用程序中添加一个WebView,
-  通过网页让用户进行支付)
-// 注意:如果是通过网页支付完成,那么会回调该block:callback
-```objc
- [[AlipaySDK defaultService] payOrder:orderString fromScheme:@"jingdong" callback:^(NSDictionary *resultDic) { }];
-```
-在AppDelegate.m
-```objc
-// 当通过别的应用程序,将该应用程序打开时,会调用该方法
-- (BOOL)application:(UIApplication *)app openURL:(NSURL *)url options:(NSDictionary<NSString *,id> *)options{ // 当用户通过支付宝客户端进行支付时,会回调该block:standbyCallback
-[[AlipaySDK defaultService] processOrderWithPaymentResult:url standbyCallback:^(NSDictionary *resultDic) { NSLog(@"result = %@",resultDic); }]; return YES;}
-```
 ## iOS的锁屏和解锁
 
 **idleTimer**
@@ -2861,75 +1792,6 @@ OC的动态特性表现为了三个方面：动态类型、动态绑定、动态
 
 >使用这些函数请引#import <objc/runtime.h>
 
-## HTTP协议及HTTPS，能否保持长连接等
-HTTP协议是客户端最常用到的协议了，HTTP连接使用的是“请求—响应”的方式，不仅在请求时需要先建立连接，
-而且需要客户端向服务器发出请求后，服务器端才能回复数据。HTTPS是以安全为目标的HTTP通道，是HTTP的安全版。
- 在HTTP下加入SSL层。 HTTPS存在不同于HTTP的默认端口及一个加密/身份验证层（在HTTP与TCP之间）。
- HTTP协议以明文方式发送内容，不提供任何方式的数据加密，如果攻击者截取了Web浏览器和网站服务器之间的传输报文，
- 就可以直接读懂其中的信息，因此HTTP协议不适合传输一些敏感信息。http的连接很简单，是无状态的，
- HTTPS协议是由SSL+HTTP协议构建的可进行加密传输、身份认证的网络协议。
-
-Request和Response的格式：
-```
-// 请求
-GET / HTTP/1.1
-
-Host:xxx.xxxx.com
-
-User-Agent: Mozilla/5.0 (Windows; U; Windows NT 6.0; en-US; rv:1.9.0.10) Gecko/2016042316 Firefox/3.0.10
-
-Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
-
-Accept-Language: en-us,en;q=0.5
-
-Accept-Encoding: gzip,deflate
-
-Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
-
-Keep-Alive: 300
-
-Connection: keep-alive
-
-If-Modified-Since: Mon, 25 May 2016 03:19:18 GMT
-
-
-//响应
-HTTP/1.1 200 OK
-
-Cache-Control: private, max-age=30
-
-Content-Type: text/html; charset=utf-8
-
-Content-Encoding: gzip
-
-Expires: Mon, 25 May 2016 03:20:33 GMT
-
-Last-Modified: Mon, 25 May 2016 03:20:03 GMT
-
-Vary: Accept-Encoding
-
-Server: Microsoft-IIS/7.0
-
-X-AspNet-Version: 2.0.50727
-
-X-Powered-By: ASP.NET
-
-Date: Mon, 25 May 2016 03:20:02 GMT
-
-Content-Length: 12173
-
-消息体的内容（略）
-```
-HTTP/1.1的默认模式使用带流水线的持久连接。这种情况下，HTTP客户每碰到一个引用就立即发出一个请求，
-因而HTTP客户可以一个接一个紧挨着发出各个引用对象的请求。服务器收到这些请求后，
-也可以一个接一个紧挨着发出各个对象。如果所有的请求和响应都是紧挨着发送的，
-那么所有引用到的对象一共只经历1个RTT的延迟(而不是像不带流水线的版本那样，
-  每个引用到的对象都各有1个RTT的延迟)。另外，带流水线的持久连接中服务器空等请求的时间比较少。
-  与非持久连接相比，持久连接(不论是否带流水线)除降低了1个RTT的响应延迟外，缓启动延迟也比较小。
-  其原因在于既然各个对象使用同一个TCP连接，服务器发出第一个对象后就不必再以一开始的缓慢速率发送后续对象。
-  相反，服务器可以按照第一个对象发送完毕时的速率开始发送下一个对象。
-
-参考书目：《HTTP权威指南》
 
 ## UIWindow
 **UIWindow**
@@ -3024,17 +1886,11 @@ NSInteger index = [[UIView subviews] indexOfObject:Subview名称];       //取�
  当然还有其他方式，但绝不是`str.length`。 length返回的是以`utf16`为单位的code unit个数。
  像很多emoji表情都会占2个unit,实际却是一个字符。不了解的朋友需要补充下Unicode相关知识。
 
-## 编译器的实现流程
-## GCC和LLVM的区别
-## 网络
-- UDP实现可靠传输是如何实现的
-- 介绍TCP协议
-- IPv4 和 IPv6 的校验和算法有什么区别？
-- TCP 有一个会添加 MD5 校验和到包中的扩展。该扩展什么时候起作用？
-- TCP 最小的端口号是多少?
-- 描述TCP建立连接的三次握手过程？如果最后一次握手失败会怎样处理？
+# **编译器的实现流程**
+# **GCC和LLVM的区别**
 
-## OC基础
+
+# **OC基础**
 - Notification在多线程时会有什么问题？怎么解决？有问题，发送和接收需要在同一个线程中，
 如果不在需要定义一个通知队列，当post来时看看是否为期望线程，不是的话就将其放入队列，
 然后发送signal到期望线程，待收到signal就从队列移除。
@@ -3051,7 +1907,7 @@ NSInteger index = [[UIView subviews] indexOfObject:Subview名称];       //取�
 - 自己设计应用网络层时会考虑哪些问题？
 - 持久层，使用sqlite如何设计版本迁移方案
 
-## 内部实现原理
+# **内部实现原理**
 - block的底层实现原理？
 - 通知中心的实现原理？
 - Category为什么可以添加方法，不可以添加实例变量？
@@ -3060,7 +1916,7 @@ NSInteger index = [[UIView subviews] indexOfObject:Subview名称];       //取�
 - runloop内部是如何实现的
 - autoreleasepool是如何实现的
 
-## 实例实现
+# **实例实现**
 - 设计一个可离线评论，有网再将数据传到服务器的API和客户端实现方案。
 - 如何做一个View能够出现在应用所有页面的最上面。
 - 设计一个排队系统可以让每个在队中的人看到自己队列所处位置和变化，队伍可能随时有人加入和退出，
