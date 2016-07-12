@@ -398,3 +398,22 @@ Flurry(www.flurry.com)
 - (BOOL)application:(UIApplication *)app openURL:(NSURL *)url options:(NSDictionary<NSString *,id> *)options{ // 当用户通过支付宝客户端进行支付时,会回调该block:standbyCallback
 [[AlipaySDK defaultService] processOrderWithPaymentResult:url standbyCallback:^(NSDictionary *resultDic) { NSLog(@"result = %@",resultDic); }]; return YES;}
 ```
+
+## iOS可执行文件瘦身方法
+- [iOS微信安装包瘦身](http://mp.weixin.qq.com/s?__biz=MzAwNDY1ODY2OQ==&mid=207986417&idx=1&sn=77ea7d8e4f8ab7b59111e78c86ccfe66&3rd=MzA3MDU4NTYzMw==&scene=6#rd)
+- [iOS APP可执行文件的组成](http://blog.cnbang.net/tech/2296/)
+- [iOS可执行文件瘦身方法](http://blog.cnbang.net/tech/2544/)
+
+## IPV6
+- [iOS应用支持IPV6，就那点事儿](http://www.jianshu.com/p/a6bab07c4062)
+
+**DNS64**
+DNS64说白了是用来帮助host获取IPv6地址的，传统的DNS服务器可以把域名转换成IPv4地址，但我们的iPhone设备如果处于IPv6环境下，只能去获取IPv6的地址。DNS64就像一个中间代理，把传统服务器返回的IPv4地址通过特殊的映射方式转换成一个看着像IPv6地址的地址（IPv4的核，IPv6的壳），转换其实很简单，用公式可以这样表达：
+>64:ff9b::IPv4 = IPv6
+
+**NAT64**
+DNS64帮助拿到IPv6的地址后，接下来就是NAT64登场，帮助IPv6的Packet顺利接入IPv4的公网当中。IPv4的公网环境路由器只认识IPv4的地址，所有这里当然也需要一个中间设备来做协议转换。NAT64就扮演这个角色。
+
+## iOS 保持界面流畅的技巧
+- [保持界面流畅的技巧](http://blog.ibireme.com/2015/11/12/smooth_user_interfaces_for_ios/)
+- [Designing for iOS: Graphics &amp; Performance](https://robots.thoughtbot.com/designing-for-ios-graphics-performance)

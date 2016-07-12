@@ -198,3 +198,4 @@ NSLog(@"=================3"); });
 鸵鸟策略、预防策略、避免策略、检测与解除死锁
 
 ### 说出几种锁，介绍其区别
+[@synchronized, NSLock, pthread, OSSpinLock showdown, done right](http://perpendiculo.us/2009/09/synchronized-nslock-pthread-osspinlock-showdown-done-right/)
