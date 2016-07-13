@@ -78,6 +78,10 @@ ViewController类都继承自UIResponder类，它们也可以响应Touch事件�
 
 而根据SDK记载： ViewController在响应链中的位于ViewController的view和它的superView之间的，因此只有在Touch在ViewController的view内部，而且viewController的view不响应Touch，ViewController才接受到Touch事件。
 
+- [iOS事件分发机制（一） hit-Testing](http://suenblog.duapp.com/blog/100031/iOS事件分发机制（一）%20hit-Testing#sidebar)
+- [iOS事件分发机制（二）The Responder Chain](http://suenblog.duapp.com/blog/100032/iOS事件分发机制（二）The%20Responder%20Chain)
+- [iOS事件响应链中Hit-Test View的应用](http://www.jianshu.com/p/d8512dff2b3e)
+
 参考文档：
 
 - [iOS Developer Library: Event Handling Guide for iOS](https://developer.apple.com/library/ios/documentation/EventHandling/Conceptual/EventHandlingiPhoneOS/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009541-CH1-SW1)
