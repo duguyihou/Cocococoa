@@ -71,13 +71,12 @@ struct __block_impl
 ```
 
 * `isa`
+  指向实例对象，表明 block 本身也是一个 Objective-C 对象。block 的三种类型：`_NSConcreteStackBlock`、`_NSConcreteGlobalBlock`、`_NSConcreteMallocBlock`，即当代码执行时，isa 有三种值
+  >- impl.isa = &_NSConcreteStackBlock;
+  - impl.isa = &_NSConcreteMallocBlock;
+  - impl.isa = &_NSConcreteGlobalBlock;
 
-指向实例对象，表明 block 本身也是一个 Objective-C 对象。block 的三种类型：`_NSConcreteStackBlock`、`_NSConcreteGlobalBlock`、`_NSConcreteMallocBlock`，即当代码执行时，isa 有三种值
->- impl.isa = &_NSConcreteStackBlock;
-- impl.isa = &_NSConcreteMallocBlock;
-- impl.isa = &_NSConcreteGlobalBlock;
-
->从这些实例对象可以看出 block 所在内存区域分别为stack、ROData、heap，后面文章会详说。
+  >从这些实例对象可以看出 block 所在内存区域分别为stack、ROData、heap，后面文章会详说。
 
 * `Flags`
 按位承载 block 的附加信息；
