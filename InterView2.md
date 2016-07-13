@@ -192,6 +192,7 @@ typedef struct objc_object *id;
 7. 埋点处理
 
 8. 字典与模型互转
+
 9. 模型自动获取所有属性并转换成SQL语句操作数据库
 
 ## oc是动态运行时语言是什么意思?
@@ -268,6 +269,7 @@ MVC是出现比较早的架构设计模式，而且到现在已经是很成熟�
 - 实现一个实例构造方法检查上面声明的静态实例是否为nil，如果是则新建并返回一个本类的实例，
 
 - 重写allocWithZone方法，用来保证其他人直接使用alloc和init试图获得一个新实力的时候不产生一个新实例，
+
 - 适当实现allocWitheZone，copyWithZone，release和autorelease。
 
 ## 如何使用Xcode设计通用应用?
@@ -287,6 +289,47 @@ ARC下对于属性修饰符不同，其内存管理策略也不一样：
 - copy：强引用，引用计数加1
 
 ARC下还是有可能出现内存泄露的，内存得不到释放，特别是使用block的时候，一定要学会分析是否形成循环引用。
+
+## __weak
+
+当一个__weak 类型的指针指向的对象被释放时,该指针会自动被置成nil.
+
+```objc
+id __weak obj1 = obj;
+```
+
+会转化为
+
+```objc
+id obj1;  
+objc_initWeak(&obj1, obj);  
+objc_destoryWeak(&obj1);
+```
+
+即编译器会通过objc_initWeak函数初始化__weak修饰的变量，当变量的作用域结束后会通过objc_destoryWeak函数释放该变量。objc_initWeak函数实际干的活是：
+
+```objc
+objc1 = 0;  
+objc_storeWeak(&obj1, obj);
+```
+
+这里是先将指针objc1置成0，再调用objc_storeWeak函数使得obj1指向obj对象。 接下来的objc_destoryWeak函数的实际操作如下：
+
+```objc
+objc_storeWeak(&obj1, 0);
+```
+
+也就是说，让obj1指针指向的内容变成空。
+
+**__weak实现原理**
+
+实际上，objc_storeWeak函数会把第二个参数的对象的地址作为key，并将第一个参数（__weak关键字修饰的指针的地址）作为值，注册到weak表中。如果第二个参数为0（说明对应的对象被释放了），则将weak表中将整个key-value键值对删除，这就是__weak关键字的核心思想！
+
+weak表和引用计数表类似，都是通过hash表实现的。如果使用weak表，将被释放的对象地址作为key去检索，就能很高效的获取对应的指向该对象的类型为__weak的指针变量的地址。同时很容易理解，一个对象可能有多个__weak指针指向，因此一个对象地址key可能对应多个值。
+
+在调用对象的release方法时，会在其中一步调用objc_clear_deallocating函数，该函数会执行以下操作：以当前对象的地址作为key，从weak表中获取对应的值----指向该对象的__weak类型的指针变量；将取到的所有指针变量的值赋值为nil；从weak表中删除该key对应的整条记录。
+
+如果大量使用附有__weak修饰符的变量会消耗响应的CPU资源，因此，应该尽量少使用__weak修饰符.
 
 ## 野指针是什么，iOS开发中什么情况下会有野指针？
 
@@ -1988,6 +2031,7 @@ freopen(“/tmp/log.txt”, “a+”, stderr);
 - ReactiveCocoa是为了解决什么设计的，什么时侯用
 
 - 自己设计应用网络层时会考虑哪些问题？
+
 - 持久层，使用sqlite如何设计版本迁移方案
 
 # **内部实现原理**
