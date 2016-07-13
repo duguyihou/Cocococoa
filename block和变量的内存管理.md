@@ -97,7 +97,7 @@ int main()
     return 0;
 }
 ```
-在加了 __block 之后，代码量增加了不少，仔细查看，其实只是比原来多了
+在加了 __block 之后，比原来多了
 > 1. `__Block_byref_intValue_0`结构体：用于封装 __block 修饰的外部变量。
 2. `_Block_object_assign`函数：当 block 从栈拷贝到堆时，调用此函数。
 3. `_Block_object_dispose`函数：当 block 从堆内存释放时，调用此函数。
