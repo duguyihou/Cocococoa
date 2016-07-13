@@ -76,11 +76,11 @@ blk_t blk;
 (*blk->impl.FuncPtr)(blk, [[NSObject alloc] init]);
 (*blk->impl.FuncPtr)(blk, [[NSObject alloc] init]);
 ```
-在本例中，当变量变量作用域结束时，array 被废弃，强引用失效，NSMutableArray 类的实例对象会被释放并废弃。在这危难关头，block 及时调用了 copy 方法，在 `_Block_object_assign` 中，将 array 赋值给 block 成员变量并持有。所以上面代码可以正常运行，打印出来的 `array count`依次递增。
+在本例中，当变量变量作用域结束时，array 被废弃，强引用失效，NSMutableArray 类的实例对象会被释放并废弃。这时block 及时调用了 copy 方法，在 `_Block_object_assign` 中，将 array 赋值给 block 成员变量并持有。所以上面代码可以正常运行，打印出来的 `array count`依次递增。
 
-总结代码可正常运行的原因关键就在于 block 通过调用 copy 方法，持有了 `__strong` 修饰的外部变量，使得外部对象在超出其作用域后得以继续存活，代码正常执行。
+代码正常运行的原因在于 block 通过调用 copy 方法，持有了 `__strong` 修饰的外部变量，使得外部对象在超出其作用域后得以继续存活，代码正常执行。
 
-在以下情形中， block 会从栈拷贝到堆：
+在以下情形中， block 会从栈(Stack)拷贝到堆(Heap)：
 * 当 block 调用 copy 方法时，如果 block 在栈上，会被拷贝到堆上；
 * 当 block 作为函数返回值返回时，编译器自动将 block 作为 `_Block_copy` 函数，效果等同于 block 直接调用 `copy` 方法；
 * 当 block 被赋值给 `__strong id` 类型的对象或 block 的成员变量时，编译器自动将 block 作为 `_Block_copy` 函数，效果等同于 block 直接调用 `copy` 方法；
@@ -89,8 +89,9 @@ blk_t blk;
 除此之外，都需要手动调用。
 
 >**延伸阅读：Objective-C 结构体中的 __strong 成员变量**
-注意到 `__main_block_impl_0` 结构体有什么异常没？在 C 结构体中出现了 `__strong` 关键字修饰的变量。
-通常情况下， Objective-C 的编译器因为无法检测 C 结构体初始化和释放的时间，不能进行有效的内存管理，所以 Objective-C 的 C 结构体成员是不能用 `__strong`、`__weak` 等等这类关键字修饰。然而 runtime 库是可以在运行时检测到 block 的内存变化，如 block 何时从栈拷贝到堆，何时从堆上释放等等，所以就会出现上述结构体成员变量用 `__strong` 修饰的情况。
+注意到 `__main_block_impl_0` 结构体有什么异常没？
+在 C 结构体中出现了 `__strong` 关键字修饰的变量。
+通常情况下， Objective-C 的编译器因为无法检测 C 结构体初始化和释放的时间，不能进行有效的内存管理，所以 Objective-C 的 C 结构体成员是不能用 `__strong`、`__weak` 等关键字修饰。然而 runtime 可以在运行时检测到 block 的内存变化，如 block 何时从栈拷贝到堆，何时从堆上释放等等，所以就会出现上述结构体成员变量用 `__strong` 修饰的情况。
 
 ## __block 变量和对象
 __block 说明符可以修饰任何类型的自动变量。
