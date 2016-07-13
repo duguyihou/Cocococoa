@@ -21,7 +21,7 @@ blk_t blk;
           } copy];
 }
 ```
-clang编译后
+`clang -rewrite-objc`编译后
 ```
 /* a struct for the Block and some functions */
 struct __main_block_impl_0
