@@ -241,8 +241,7 @@ id objc_autoreleaseReturnValue(id obj)
 |_NSConcreteMallocBlock| Heap|Increment the reference count of the object|
 
 
-有兴趣可以了解下 block 的多次拷贝。
->block的多次拷贝：下面的例子在 ARC 下并不会产生内存泄露
+**block的多次拷贝**：下面的例子在 ARC 下并不会产生内存泄露
 ```
 // block 多次拷贝源码
 blk = [[[[blk copy] copy] copy] copy];
