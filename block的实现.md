@@ -203,10 +203,7 @@ int main()
 
 ```
 
-原来 block 通过参数值传递获取到 `intValue` 变量，通过函数
->__main_block_impl_0 (void *fp, struct __main_block_desc_0 *desc, int _intValue, int flags=0) : intValue(_intValue)
-
-保存到 `__main_block_impl_0` 结构体的同名变量 `intValue`，通过代码 `int intValue = __cself->intValue`; 取出 `intValue`，打印出来。
+原来 block 通过参数值传递获取到 `intValue` 变量，通过函数`__main_block_impl_0 (void *fp, struct __main_block_desc_0 *desc, int _intValue, int flags=0) : intValue(_intValue)`保存到 `__main_block_impl_0` 结构体的同名变量 `intValue`，通过代码 `int intValue = __cself->intValue`; 取出 `intValue`，打印出来。
 
 >构造函数`__main_block_impl_0`冒号后的表达式`intValue(_intValue)`的意思是，用 `_intValue`初始化结构体成员变量 `intValue`。
 有四种情况下应该使用初始化表达式来初始化成员：
@@ -216,5 +213,5 @@ int main()
 4. 当调用成员类的构造函数，而它拥有一组参数时
 [参考：C++类成员冒号初始化以及构造函数内赋值](http://blog.csdn.net/zj510/article/details/8135556)
 
-至此，我们已经了解了block 的实现，以及获取外部变量的原理。但是，我们还不能在 block 内修改 intValue 变量。如果你有心试下，在 block 内部修改 `intValue` 的值，会报编译错误
->Variable is not assignable(missing __block type specifier)
+但是，我们还不能在 block 内修改 intValue 变量。若尝试在 block 内部修改 `intValue` 的值，会报编译错误
+`Variable is not assignable(missing __block type specifier)`
