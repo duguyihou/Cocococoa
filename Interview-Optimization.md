@@ -10,6 +10,8 @@
 - 将I/O操作、复杂运算放到子线程中处理，再回到主线程更新UI
 
 如果列表比较复杂，对于上面的做好后，还是不够流畅，就需要通过线程s工具来检测哪些地方可以优化了。
+中文:[UITableView 的完美平滑滚动](http://ios.jobbole.com/84360/)
+英文:[perfect-smooth-scrolling-in-uitableviews](https://medium.com/ios-os-x-development/perfect-smooth-scrolling-in-uitableviews-fd609d5275a5#.6fnfw5gkm)
 
 ## 用Instrument优化动画性能的经历
 [iOS App性能优化](http://www.hrchen.com/2013/05/performance-with-instruments/)
