@@ -185,7 +185,13 @@ NSLog(@"=================3"); });
 使用线程的好处是有多个任务需要处理机处理时，减少处理机的切换时间；而且，
 线程的创建和结束所需要的系统开销也比进程的创建和结束要小得多。最适用使用线程的系统是多处理机系统和网络系统或分布式系统。
 
-
+## [How to print or see method call stack in xcode?](http://stackoverflow.com/questions/9516288/how-to-print-or-see-method-call-stack-in-xcode)
+```objc
+NSLog(@"Stack trace : %@",[NSThread callStackSymbols]);
+```
+```swift
+println("Stack trace: %@", NSThread.callStackSymbols())
+```
 ###  列举几种进程的同步机制，并比较其优缺点。
  原子操作 ?信号量机制 ? ?自旋锁 ? ?管程，会合，分布式系统
 ### 进程之间通信的途径
