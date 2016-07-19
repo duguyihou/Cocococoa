@@ -13,6 +13,8 @@
 中文:[UITableView 的完美平滑滚动](http://ios.jobbole.com/84360/)
 英文:[perfect-smooth-scrolling-in-uitableviews](https://medium.com/ios-os-x-development/perfect-smooth-scrolling-in-uitableviews-fd609d5275a5#.6fnfw5gkm)
 
+## [8 Patterns to Help You Destroy Massive View Controller](http://khanlou.com/2014/09/8-patterns-to-help-you-destroy-massive-view-controller/?utm_source=wanqu.co&utm_campaign=Wanqu+Daily&utm_medium=website)
+
 ## 用Instrument优化动画性能的经历
 [iOS App性能优化](http://www.hrchen.com/2013/05/performance-with-instruments/)
 
