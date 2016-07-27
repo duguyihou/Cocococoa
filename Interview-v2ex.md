@@ -36,6 +36,65 @@ NSString * const kBCMyConstant = @"XXXX";
 ```
 
 4. Create variadic method
+
+.h
+```objc
+-(void)yourMethods:(id)string1,...;
+```
+.m
+```objc
+-(void)yourMethods:(id)string1, ...{
+
+    NSMutableArray *arguments=[[NSMutableArray alloc]initWithArray:nil];
+    id eachObject;
+    va_list argumentList;
+    if (string1)
+    {
+        [arguments addObject: string1];
+        va_start(argumentList, string1);
+        while ((eachObject = va_arg(argumentList, id)))    
+        {
+             [arguments addObject: eachObject];
+        }
+        va_end(argumentList);        
+     }
+    NSLog(@"%@",arguments);
+}
+```
+call the method
+```objc
+[self yourMethods:@"ab",@"cd",@"ef",@"gf",nil];
+```
+>remember to put nil at the end
+
+
+```objc
+- (NSString *) append:(NSString *)list, ...
+{
+    NSMutableString * res = [NSMutableString string];
+    [res appendString:list];
+
+    va_list args;
+    va_start(args, list);
+    id arg = nil;
+
+    while(( arg = va_arg(args, id))){
+        [res appendString:arg];
+    }
+    va_end(args);
+    return res;
+}
+
+- (void) test_va_arg
+{
+    NSString * t = [self append:@"a", @"b", @"c", nil];
+    STAssertEqualObjects(@"abc", t, @"");
+}
+```
+参考：
+http://stackoverflow.com/questions/4804674/how-to-create-variable-argument-methods-in-objective-c
+http://stackoverflow.com/questions/12454408/variable-number-of-method-parameters-in-objective-c-need-an-example
+http://www.cocoabuilder.com/archive/cocoa/125332-variadic-arguments-to-methods-in-objective-how.html
 5. Create a singleton
 ```objc
 + (instancetype)sharedInstance {
@@ -109,6 +168,46 @@ BOOL sameMonth = (components.month == components2.month);
 ```objc
 - (void)myMethod;
 - (void)bc_myMethod;
+```
+
+```objc
++ (void)load {
+    static dispatch_once_t oncoToken;
+    dispatch_once (&oncoToken, ^{
+        Class class = [self class];
+
+        SEL mySelector = @selector(myMethod);
+        SEL bc_mySelector = @selector(bc_myMethod);
+
+        Method myMethod = class_getInstanceMethod(class, mySelector);
+        Method swizzledMethod = class_getInstanceMethod(class, bc_mySelector);
+
+            // When swizzling a class method, use the following:
+            // Class class = object_getClass((id)self);
+            // ...
+            // Method originalMethod = class_getClassMethod(class, originalSelector);
+            // Method swizzledMethod = class_getClassMethod(class, swizzledSelector);
+        BOOL didAddMethod = class_addMethod(class,
+                                            mySelector,
+                                            method_getImplementation(swizzledMethod),
+                                            method_getTypeEncoding(swizzledMethod));
+
+        if (didAddMethod) {
+            class_replaceMethod(class,
+                                bc_mySelector,
+                                method_getImplementation(myMethod),
+                                method_getTypeEncoding(myMethod));
+        } else {
+            method_exchangeImplementations(myMethod, swizzledMethod);
+        }
+    });
+}
+
+# pragma mark - Method Swizzling
+- (void)bc_myMethod {
+
+}
+
 ```
 2. Determine the type of a property
 ```objc
