@@ -93,3 +93,15 @@ NSDateComponents *components2 = [calendar component:NSCalendarUnitMonth fromDate
 BOOL sameMonth = (components.month == components2.month);
 
 ```
+# Runtime
+1. Swizzle a method
+```objc
+- (void)myMethod;
+- (void)bc_myMethod;
+```
+2. Determine the type of a property
+```objc
+@property (nonatomic, copy) NSString *myProperty;
+```
+3. Determine the caller of a method
+Stack, framework, address, class, function, line.
