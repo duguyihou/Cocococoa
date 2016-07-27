@@ -52,9 +52,44 @@ NSString * const kBCMyConstant = @"XXXX";
 NSString *string = [NSString stringWithFormat:@"%@%@", @"a", @"b"];
 NSString *string = [@"a" stringByAppendingString:@"b"];
 ```
-7. Percentage encoding and decoding
+7. Percentage encoding and decoding(URL encoding)
 8. Reverse an array
 ```objc
 NSArray *array = [@[@"a", @"b"] reverseObjectEnumerator].allObjects;
 ```
 9. Filter objects in an array by value of a property
+```objc
+@interface MyObject : NSObject
+@property (nonatomic, assign, readonly) BOOL favorited;
+@end
+```
+Given an NSArray instance containing several MyObject objects, put the objects of which favorited property are YES into a new NSArray instance.
+```objc
+NSArray<MyObject *> *array = @[@"a", @"b"];
+    NSPredicate *predicate = [NSPredicate predicateWithBlock:^BOOL(id  _Nonnull evaluatedObject, NSDictionary<NSString *,id> * _Nullable bindings) {
+        return evaluatedObject.favorited;
+    }];
+    NSArray *array2 = [array filteredArrayUsingPredicate:predicate];
+```
+10. Remove duplicated objects from an array
+```objc
+NSArray *myArray = @[@"a", @"b", @"c", @"a", @"d"];
+```
+Create a new NSArray instance from myArray containing @"a", @"b", @"c", @"d" only.
+```objc
+NSArray *myArray = @[@"a", @"b", @"c", @"d", @"a"];
+NSArray *array = [array valueForKeyPath:@"@unionOfArray.self"];
+NSArray *array1 = [NSOrderedSet orderedSetWithArray:duplicatedArray].array;  
+```
+11. Determine if an NSDate instance is in this month
+```objc
+NSDate *date = [NSDate date];
+NSDate *date2 = [NSDate date];
+NSCalendar *calendar = [NSCalendar currentCalendar];
+
+NSDateComponents *components = [calendar component:NSCalendarUnitMonth fromDate:date];
+NSDateComponents *components2 = [calendar component:NSCalendarUnitMonth fromDate:date2];
+
+BOOL sameMonth = (components.month == components2.month);
+
+```
