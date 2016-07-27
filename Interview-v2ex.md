@@ -53,6 +53,17 @@ NSString *string = [NSString stringWithFormat:@"%@%@", @"a", @"b"];
 NSString *string = [@"a" stringByAppendingString:@"b"];
 ```
 7. Percentage encoding and decoding(URL encoding)
+```objc
+NSString *sampleUrl = @"http://www.google.com/search.jsp?params=Java Developer";
+NSString* encodedUrl = [sampleUrl stringByAddingPercentEscapesUsingEncoding:
+ NSUTF8StringEncoding];
+```
+```objc
+[NSURL URLWithString:[string stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding]];
+```
+http://stackoverflow.com/questions/8086584/objective-c-url-encoding
+http://stackoverflow.com/questions/8088473/how-do-i-url-encode-a-string
+http://stackoverflow.com/questions/3418754/how-to-prepare-an-nsurl-from-an-nsstring-continaing-international-characters
 8. Reverse an array
 ```objc
 NSArray *array = [@[@"a", @"b"] reverseObjectEnumerator].allObjects;
@@ -103,5 +114,20 @@ BOOL sameMonth = (components.month == components2.month);
 ```objc
 @property (nonatomic, copy) NSString *myProperty;
 ```
+参考[How to detect a property return type in Objective-C](http://stackoverflow.com/questions/769319/how-to-detect-a-property-return-type-in-objective-c)
 3. Determine the caller of a method
 Stack, framework, address, class, function, line.
+参考[Objective C find caller of method](http://stackoverflow.com/questions/1451342/objective-c-find-caller-of-method/1451437#1451437)
+```objc
+NSString *sourceString = [[NSThread callStackSymbols] objectAtIndex:1];
+// Example: 1   UIKit                               0x00540c89 -[UIApplication _callInitializationDelegatesForURL:payload:suspended:] + 1163
+NSCharacterSet *separatorSet = [NSCharacterSet characterSetWithCharactersInString:@" -[]+?.,"];
+NSMutableArray *array = [NSMutableArray arrayWithArray:[sourceString  componentsSeparatedByCharactersInSet:separatorSet]];
+[array removeObject:@""];
+
+NSLog(@"Stack = %@", [array objectAtIndex:0]);
+NSLog(@"Framework = %@", [array objectAtIndex:1]);
+NSLog(@"Memory address = %@", [array objectAtIndex:2]);
+NSLog(@"Class caller = %@", [array objectAtIndex:3]);
+NSLog(@"Function caller = %@", [array objectAtIndex:4]);
+```
