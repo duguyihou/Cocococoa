@@ -1,11 +1,12 @@
 # Interview-v2ex
 >原链接：https://www.v2ex.com/t/289580
 
-1. Declare an NS_OPTIONS type BCLayoutAxis with following values:
-* none
-* horizontal
-* vertical
-* all
+## 1. Declare an NS_OPTIONS type BCLayoutAxis with following values:
+  * none
+  * horizontal
+  * vertical
+  * all
+
 ```objc
 typedef NS_OPTIONS(NSUInteger, BCLayoutAxis) {
 BCLayoutAxisNone       = 1 << 0,
@@ -14,7 +15,8 @@ BCLayoutAxisVertical   = 1 << 2,
 BCLayoutAxisAll        = (BCLayoutAxisHorizontal | BCLayoutAxisVertical)
 };
 ```
-2. Create string representations for the values above
+
+## 2. Create string representations for the values above
 For debugging, we need string representations ("none", "horizontal", "vertical", "all") instead of original integer values. Use a graceful approach to represent them.
 ```objc
 NSString * const BCLayoutAxisDescription[] = {
@@ -24,8 +26,9 @@ NSString * const BCLayoutAxisDescription[] = {
 [BCLayoutAxisAll]                          = @"BCLayoutAxisAll"
 };
 ```
-3. Declare a constant value (public/private)
+## 3. Declare a constant value (public/private)
 Declare a constant named kBCMyConstant of NSString type with value of myConstantValue, public and private.
+
 .h
 ```objc
 extern NSString * const kBCMyConstant;
@@ -35,7 +38,7 @@ extern NSString * const kBCMyConstant;
 NSString * const kBCMyConstant = @"XXXX";
 ```
 
-4. Create variadic method
+## 4. Create variadic method
 
 .h
 ```objc
@@ -93,9 +96,11 @@ call the method
 ```
 参考：
 http://stackoverflow.com/questions/4804674/how-to-create-variable-argument-methods-in-objective-c
+
 http://stackoverflow.com/questions/12454408/variable-number-of-method-parameters-in-objective-c-need-an-example
+
 http://www.cocoabuilder.com/archive/cocoa/125332-variadic-arguments-to-methods-in-objective-how.html
-5. Create a singleton
+## 5. Create a singleton
 ```objc
 + (instancetype)sharedInstance {
     static NSObject *sharedInstance = nil;
@@ -106,12 +111,12 @@ http://www.cocoabuilder.com/archive/cocoa/125332-variadic-arguments-to-methods-i
     return sharedInstance;
 }
 ```
-6. Concatenate string literals
+## 6. Concatenate string literals
 ```objc
 NSString *string = [NSString stringWithFormat:@"%@%@", @"a", @"b"];
 NSString *string = [@"a" stringByAppendingString:@"b"];
 ```
-7. Percentage encoding and decoding(URL encoding)
+## 7. Percentage encoding and decoding(URL encoding)
 ```objc
 NSString *sampleUrl = @"http://www.google.com/search.jsp?params=Java Developer";
 NSString* encodedUrl = [sampleUrl stringByAddingPercentEscapesUsingEncoding:
@@ -123,11 +128,11 @@ NSString* encodedUrl = [sampleUrl stringByAddingPercentEscapesUsingEncoding:
 http://stackoverflow.com/questions/8086584/objective-c-url-encoding
 http://stackoverflow.com/questions/8088473/how-do-i-url-encode-a-string
 http://stackoverflow.com/questions/3418754/how-to-prepare-an-nsurl-from-an-nsstring-continaing-international-characters
-8. Reverse an array
+## 8. Reverse an array
 ```objc
 NSArray *array = [@[@"a", @"b"] reverseObjectEnumerator].allObjects;
 ```
-9. Filter objects in an array by value of a property
+## 9. Filter objects in an array by value of a property
 ```objc
 @interface MyObject : NSObject
 @property (nonatomic, assign, readonly) BOOL favorited;
@@ -141,7 +146,7 @@ NSArray<MyObject *> *array = @[@"a", @"b"];
     }];
     NSArray *array2 = [array filteredArrayUsingPredicate:predicate];
 ```
-10. Remove duplicated objects from an array
+## 10. Remove duplicated objects from an array
 ```objc
 NSArray *myArray = @[@"a", @"b", @"c", @"a", @"d"];
 ```
@@ -151,7 +156,7 @@ NSArray *myArray = @[@"a", @"b", @"c", @"d", @"a"];
 NSArray *array = [array valueForKeyPath:@"@unionOfArray.self"];
 NSArray *array1 = [NSOrderedSet orderedSetWithArray:duplicatedArray].array;  
 ```
-11. Determine if an NSDate instance is in this month
+## 11. Determine if an NSDate instance is in this month
 ```objc
 NSDate *date = [NSDate date];
 NSDate *date2 = [NSDate date];
@@ -164,7 +169,7 @@ BOOL sameMonth = (components.month == components2.month);
 
 ```
 # Runtime
-1. Swizzle a method
+## 1. Swizzle a method
 ```objc
 - (void)myMethod;
 - (void)bc_myMethod;
@@ -209,13 +214,15 @@ BOOL sameMonth = (components.month == components2.month);
 }
 
 ```
-2. Determine the type of a property
+## 2. Determine the type of a property
 ```objc
 @property (nonatomic, copy) NSString *myProperty;
 ```
 参考[How to detect a property return type in Objective-C](http://stackoverflow.com/questions/769319/how-to-detect-a-property-return-type-in-objective-c)
-3. Determine the caller of a method
+
+## 3. Determine the caller of a method
 Stack, framework, address, class, function, line.
+
 参考[Objective C find caller of method](http://stackoverflow.com/questions/1451342/objective-c-find-caller-of-method/1451437#1451437)
 ```objc
 NSString *sourceString = [[NSThread callStackSymbols] objectAtIndex:1];
