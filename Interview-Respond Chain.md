@@ -1,10 +1,13 @@
 # Respond Chain
+>事件响应链。包括点击事件，画面刷新事件等。在视图栈内从上至下，或者从下之上传播。 可以说点事件的分发，传递以及处理。具体可以去看下touch事件这块。 可以从责任链模式，来讲通过事件响应链处理，其拥有的扩展性
+
 ## 什么是事件响应链，点击屏幕时是如何互动的，事件的传递。
 
 对于IOS设备用户来说，他们操作设备的方式主要有三种：触摸屏幕、晃动设备、通过遥控设施控制设备。 对应的事件类型有以下三种：
 
 1. 触屏事件（Touch Event）
-2. 运动事件（Motion Event） 3.远端控制事件（Remote-Control Event）
+2. 运动事件（Motion Event）
+3.远端控制事件（Remote-Control Event）
 
 **响应者链（Responder Chain）** 响应者对象（Responder Object），指的是有响应和处理事件能力的对象。响应者链就是由一系列的响应者对象构成的一个层次结构。
 
@@ -21,3 +24,100 @@ hitTest:withEvent:方法的处理流程如下:首先调用当前视图的pointIn
 事件的传递和响应分两个链：
 
 传递链：由系统向离用户最近的view传递。UIKit –> active app's event queue –> window –> root view –>......–>lowest view 响应链：由离用户最近的view向系统传递。initial view –> super view –> .....–> view controller –> window –> Application
+
+## 有哪几种手势通知方法、写清楚方法名？
+
+```objc
+-(void)touchesBegan:(NSSet*)touchedwithEvent:(UIEvent*)event;
+
+-(void)touchesMoved:(NSSet*)touched withEvent:(UIEvent*)event;
+
+-(void)touchesEnded:(NSSet*)touchedwithEvent:(UIEvent*)event;
+
+-(void)touchesCanceled:(NSSet*)touchedwithEvent:(UIEvent*)event;
+```
+## 用一个pan手势来代替UISwipegesture的各个方向
+
+```objc
+- (void)pan:(UIPanGestureRecognizer *)sender
+{
+typedef NS_ENUM(NSUInteger, UIPanGestureRecognizerDirection) {
+UIPanGestureRecognizerDirectionUndefined,
+UIPanGestureRecognizerDirectionUp,
+UIPanGestureRecognizerDirectionDown,
+UIPanGestureRecognizerDirectionLeft,
+UIPanGestureRecognizerDirectionRight
+};
+
+static  UIPanGestureRecognizerDirection direction = UIPanGestureRecognizerDirectionUndefined;
+
+switch (sender.state) {
+case  UIGestureRecognizerStateBegan: {
+if  (direction == UIPanGestureRecognizerDirectionUndefined) {
+CGPoint velocity = [sender velocityInView:recognizer.view];
+BOOL isVerticalGesture = fabs(velocity.y) > fabs(velocity.x);
+if (isVerticalGesture) {
+    if (velocity.y > 0) {
+    direction = UIPanGestureRecognizerDirectionDown;
+    }    
+    else  {
+    direction = UIPanGestureRecognizerDirectionUp;
+    }
+}
+else
+{
+if (velocity.x > 0) {
+direction = UIPanGestureRecognizerDirectionRight;
+}
+else
+{
+direction = UIPanGestureRecognizerDirectionLeft;
+}
+}
+}
+break ;
+}
+
+case UIGestureRecognizerStateChanged: {
+switch (direction) {
+case UIPanGestureRecognizerDirectionUp: {
+[self handleUpwardsGesture:sender];
+break ;
+}
+
+case UIPanGestureRecognizerDirectionDown: {
+[self handleDownwardsGesture:sender];
+break;
+}
+
+case  UIPanGestureRecognizerDirectionLeft: {
+[self handleLeftGesture:sender];
+break;
+}
+
+case UIPanGestureRecognizerDirectionRight: {
+[self handleRightGesture:sender];
+break ;
+}
+default : {
+break;
+}
+}
+break;
+}
+
+case  UIGestureRecognizerStateEnded: {
+direction = UIPanGestureRecognizerDirectionUndefined;  
+break;
+}
+
+default:
+break;
+}
+}
+```
+## 控件主要响应3种事件
+
+- 基于触摸的事件
+- 基于值的事件
+- 基于编辑的事件。

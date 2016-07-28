@@ -439,6 +439,43 @@ drawRect方法依赖Core Graphics框架来进行自定义的绘制，但这种�
 - [iOS APP可执行文件的组成](http://blog.cnbang.net/tech/2296/)
 - [iOS可执行文件瘦身方法](http://blog.cnbang.net/tech/2544/)
 
+## 拉伸图片不变形
+
+```objc
+[[UIImage imageNamed:@""] stretchableImageWithLeftCapWidth:10 topCapHeight:10];
+[[UIImage imageNamed:@""] resizableImageWithCapInsets:UIEdgeInsetsMake(10, 10, 10, 10)];
+```
+
+## Gif图片显示优化
+
+[FLAnimatedImage](https://github.com/Flipboard/FLAnimatedImage)
+
+```objc
+FLAnimatedImage *image = [FLAnimatedImage animatedImageWithGIFData:[NSData dataWithContentsOfURL:[NSURL URLWithString:@"https://upload.wikimedia.org/wikipedia/commons/2/2c/Rotating_earth_%28large%29.gif"]]];
+FLAnimatedImageView *imageView = [[FLAnimatedImageView alloc] init];
+imageView.animatedImage = image;
+imageView.frame = CGRectMake(0.0, 0.0, 100.0, 100.0);
+[self.view addSubview:imageView];
+```
+## 图片旋转时抗锯齿
+
+> 将某一个视图进行旋转，旋转时会发现图片边缘出现了很多锯齿。即使把layer的edgeAntialiasingMask属性设置了依然会有锯齿。如何才能消除锯齿呢？如果你仔细，你会发现那些边缘虚化(透明)的图片在旋转时并不会出现锯齿。那么如果我们把这些图片的边缘透明化，会不会解决这个问题呢？
+
+在图片边缘加了一个像素的透明区域，代码如下：
+
+```objc
+- (UIImage*)antialiasedImageOfSize:(CGSize)size scale:(CGFloat)scale{
+    UIGraphicsBeginImageContextWithOptions(size, NO, scale);
+    [self drawInRect:CGRectMake(1, 1, size.width-2, size.height-2)];
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
+}
+```
+
+> Layer的edgeAntialiasingMask属性并不能有效抗锯齿，只需要在图片边缘加入1个像素的透明区域就可以完美实现图片抗锯齿了。
+
+
 ## IPV6
 - [iOS应用支持IPV6，就那点事儿](http://www.jianshu.com/p/a6bab07c4062)
 
