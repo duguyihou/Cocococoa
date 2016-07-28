@@ -308,20 +308,6 @@ else {
 
 属性设为copy,指定此属性的值不可更改，防止可变字符串更改自身的值的时候不会影响到对象属性 （如NSString,NSArray,NSDictionary）的值。strong此属性的指会随着变化而变化。copy是内容拷贝，strong是指针拷贝。
 
-## 写一个单例模式
-
-```objc
-+ (AccountManager *)sharedManager
-{
-    static AccountManager *sharedAccountManagerInstance = nil;
-    static dispatch_once_t predicate;
-    dispatch_once(&predicate, ^{
-            sharedAccountManagerInstance = [[self alloc] init];
-    });
-return sharedAccountManagerInstance;
-}
-```
-
 ## **如何用一行代码计算NSString字符的个数**
 
 正确答案是`[str lengthOfBytesUsingEncoding:NSUTF32StringEncoding]/4` 有少部分朋友答对了。 当然还有其他方式，但绝不是`str.length`。 length返回的是以`utf16`为单位的code unit个数。 像很多emoji表情都会占2个unit,实际却是一个字符.需要补充下Unicode相关知识。
@@ -370,32 +356,6 @@ UICollectionReusableView *cell = [collectionView dequeueReusableSupplementaryVie
  return cell;
 }
 }
-```
-
-## iOS中日志打印Q&A
-
-**打印当前的函数和行号？**
-
-```objc
-NSLog(@"%s:%d obj=%@", __func__, __LINE__, obj);
-```
-
-其中func和LINE都是预编译的宏，编译时会分别替换为当前函数和当前行号。 下面是一些常用于打印日志的宏。
-
-宏                   | 说明
-------------------- | ----------------------------
-**func**            | 打印当前函数或方法，c字符串
-**LINE**            | 打印当前行号，整数
-**FILE**            | 打印当前文件路径，c字符串
-**PRETTY_FUNCTION** | 打印当前函数或方法（在C++中会包含参数类型），c字符串
-
-**打印一个类名，消息名，当前堆栈信息？** 使用以下方法在运行时动态获取这些信息。 代码 | 说明 --- | --- `NSStringFromSelector(SEL)` | 获取selector的名字 `NSStringFromSelector(_cmd)` | 获取当前方法名 `NSStringFromClass([object class])` | 获取object的类名 `[NSThread callStackSymbols]` | 获取当前线程的栈，是一个NSArry，包含堆栈中所有函数名。
-
-**将日志打印到一个文件?** 使用freopen函数重定向标准输出和标准出错文件。因为printf函数会向标准输出（stdout）打印，而NSLog函数会向标准出错（stderr）打印。重新定向标准输出（stdout）和标准出错（stderr）到一个文件将会使他们打印日志到一个文件中。
-
-```objc
-freopen(“/tmp/log.txt”, “a+”, stdout);
-freopen(“/tmp/log.txt”, “a+”, stderr);
 ```
 
 # **编译器的实现流程**
