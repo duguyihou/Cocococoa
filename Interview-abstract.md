@@ -59,3 +59,61 @@ Objective-C的运行时是动态的，它能让你在运行时为类添加方法
 
 > <objc runtime.h="">
 > </objc>
+
+## Objective-C的优缺点。
+
+objc优点：
+
+1. Cateogies
+2. ?Posing
+3. 动态识别
+4. 指标计算
+5. 弹性讯息传递
+6. 不是一个过度复杂的 C 衍生语言
+7. Objective-C 与 C++ 可混合编程 objc缺点:
+8. 不支援命名空间
+9. 不支持运算符重载
+10. 不支持多重继承
+11. 使用动态运行时类型，所有的方法都是函数调用，所以很多编译时优化方法都用不到。（如内联函数等），性能低劣。
+
+## iOS的系统架构
+
+iOS的系统架构分为（ 核心操作系统层 theCore OS layer ）、（ 核心服务层theCore Services layer ）、 （ 媒体层 theMedia layer ）和（ Cocoa 界面服务层 the Cocoa Touch layer ）四个层次。
+
+## cocoa touch框架
+
+iPhone OS 应用程序的基础 Cocoa Touch 框架重用了许多 Mac 系统的成熟模式， 但是它更多地专注于触摸的接口和优化。
+
+UIKit 为您提供了在 iPhone OS 上实现图形，事件驱动程序的基本工具，其建立在和 Mac OS X 中一样的 Foundation 框架上，包括文件处理，网络，字符串操作等。
+
+Cocoa Touch 具有和 iPhone 用户接口一致的特殊设计。有了 UIKit，您可以使用 iPhone OS 上的独特的图形接口控件，按钮，以及全屏视图的功能，您还可以使用加速仪和多点触摸手势来控制您的应用。
+
+各色俱全的框架 除了UIKit 外，Cocoa Touch 包含了创建世界一流 iPhone 应用程序需要的所有框架， 从三维图形，到专业音效，甚至提供设备访问 API 以控制摄像头，或通过 GPS 获知当前位置。
+
+Cocoa Touch 既包含只需要几行代码就可以完成全部任务的强大的 Objective-C 框架， 也在需要时提供基础的 C 语言 API 来直接访问系统。这些框架包括：
+
+Core Animation：通过 Core Animation，您就可以通过一个基于组合独立图层的简单的编程模型来创建丰富的用户体验。
+
+Core Audio：Core Audio 是播放，处理和录制音频的专业技术，能够轻松为您的应用程序添加强大的音频功能。
+
+Core Data：提供了一个面向对象的数据管理解决方案，它易于使用和理解，甚至可处理任何应用或大或小的数据模型。
+
+功能列表：框架分类
+
+下面是 Cocoa Touch 中一小部分可用的框架：
+
+音频和视频：Core Audio ，OpenAL ，Media Library ，AV Foundation
+
+数据管理 ：Core Data ，SQLite
+
+图形和动画 ：Core Animation ，OpenGL ES ，Quartz 2D
+
+网络：Bonjour ，WebKit ，BSD Sockets
+
+用户应用：Address Book ，Core Location ，Map Kit ，Store Kit
+
+## 什么是沙盒模型？哪些操作是属于私有api范畴?
+
+某个iphone工程进行文件操作有此工程对应的指定的位置，不能逾越。
+
+iphone沙箱模型的有四个文件夹documents，tmp，app，Library，永久数据存储一般放documents文件夹， 得到模拟器的路径的可使用NSHomeDirectory()方法。Nsuserdefaults保存的文件在tmp文件夹里。

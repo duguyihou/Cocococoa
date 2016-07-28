@@ -185,6 +185,23 @@ NSLog(@"=================3"); });
 使用线程的好处是有多个任务需要处理机处理时，减少处理机的切换时间；而且，
 线程的创建和结束所需要的系统开销也比进程的创建和结束要小得多。最适用使用线程的系统是多处理机系统和网络系统或分布式系统。
 
+## 使用nonatomic一定是线程安全的吗？
+
+不是的。 atomic原子操作，系统会为setter方法加锁。 具体使用 @synchronized(self){//code } nonatomic不会为setter方法加锁。 atomic：线程安全，需要消耗大量系统资源来为属性加锁 nonatomic：非线程安全，适合内存较小的移动设备
+
+## 原子(atomic)跟非原子(non-atomic)属性有什么区别?
+
+1. atomic提供多线程安全。是防止在写未完成的时候被另外一个线程读取，造成数据错误
+2. non-atomic:在自己管理内存的环境中，解析的访问器保留并自动释放返回的值， 如果指定了 nonatomic ，那么访问器只是简单地返回这个值。
+
+## Object C中创建线程的方法是什么?如果在主线程中执行代码，
+
+方法是什么?如果想延时执行代码、方法又是什么? 线程创建有三种方法：使用NSThread创建、使用GCD的dispatch、使用子类化的NSOperation, 然后将其加入NSOperationQueue;在主线程执行代码，方法是`performSelectorOnMainThread`， 如果想延时执行代码可以用`performSelector:onThread:withObject:waitUntilDone:`
+
+## NSOperation queue?
+
+存放NSOperation的集合类。 操作和操作队列，基本可以看成java中的线程和线程池的概念。用于处理ios多线程开发的问题。 网上部分资料提到一点是，虽然是queue，但是却并不是带有队列的概念，放入的操作并非是按照严格的先进现出。 这边又有个疑点是，对于队列来说，先进先出的概念是Afunc添加进队列，Bfunc紧跟着也进入队列，Afunc先执行这个是必然的， 但是Bfunc是等Afunc完全操作完以后，B才开始启动并且执行，因此队列的概念离乱上有点违背了多线程处理这个概念。 但是转念一想其实可以参考银行的取票和叫号系统。 因此对于A比B先排队取票但是B率先执行完操作，我们亦然可以感性认为这还是一个队列。 但是后来看到一票关于这操作队列话题的文章，其中有一句提到 "因为两个操作提交的时间间隔很近，线程池中的线程，谁先启动是不定的。" 瞬间觉得这个queue名字有点忽悠人了，还不如pool~ 综合一点，我们知道他可以比较大的用处在于可以帮组多线程编程就好了。
+
 ## [How to print or see method call stack in xcode?](http://stackoverflow.com/questions/9516288/how-to-print-or-see-method-call-stack-in-xcode)
 ```objc
 NSLog(@"Stack trace : %@",[NSThread callStackSymbols]);

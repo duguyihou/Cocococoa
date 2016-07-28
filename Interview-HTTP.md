@@ -279,6 +279,11 @@ RESTful架构：
 　　（2）客户端和服务器之间，传递这种资源的某种表现层；
 　　（3）客户端通过四个HTTP动词，对服务器端资源进行操作，实现"表现层状态转化"。
 
+## 简单介绍下NSURLConnection类及+ sendSynchronousRequest:returningResponse:error:
+
+与– initWithRequest:delegate:两个方法的区别? NSURLConnection主要用于网络访问，其中+ sendSynchronousRequest:returningResponse:error: 是同步访问数据，即当前线程会阻塞，并等待request的返回的response，而– initWithRequest:delegate: 使用的是异步加载，当其完成网络访问后，会通过delegate回到主线程，并其委托的对象。
+
+
 ## **网络**
 - UDP实现可靠传输是如何实现的
 - 介绍TCP协议

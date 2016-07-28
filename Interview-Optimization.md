@@ -381,6 +381,38 @@ Flurry(www.flurry.com)
 4. 线程回溯描述了crash发生时所有线程的回溯信息，每个线程在每一帧对应的函数调用信息（这里由于空间限制没有全部列出）；　　5. 二进制映像是指crash发生时已加载的二进制文件。以上就是一份crash日志包含的所有信息，
 接下来就需要根据这些信息去解析定位导致crash发生的代码逻辑， 这就需要用到符号化解析的过程（洋名叫：symbolication)。
 
+## 如何高性能的给UIImageView加个圆角？（不准说layer.cornerRadius!）
+
+我觉得应该是使用Quartz2D直接绘制图片,得把这个看看。 步骤：
+
+1. 创建目标大小(cropWidth，cropHeight)的画布。
+2. 使用UIImage的drawInRect方法进行绘制的时候，指定rect为(-x，-y，width，height)。
+3. 从画布中得到裁剪后的图像。
+
+```objc
+- (UIImage*)cropImageWithRect:(CGRect)cropRect
+{
+    CGRect drawRect = CGRectMake(-cropRect.origin.x , -cropRect.origin.y, self.size.width * self.scale, self.size.height * self.scale);
+
+    UIGraphicsBeginImageContext(cropRect.size);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    CGContextClearRect(context, CGRectMake(0, 0, cropRect.size.width, cropRect.size.height));
+
+    [self drawInRect:drawRect];
+
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+
+    return image;
+}
+
+@end
+```
+
+## 使用drawRect有什么影响？（这个可深可浅，你至少得用过。。）
+
+drawRect方法依赖Core Graphics框架来进行自定义的绘制，但这种方法主要的缺点就是它处理touch事件的方式： 每次按钮被点击后，都会用setNeddsDisplay进行强制重绘；而且不止一次，每次单点事件触发两次执行。 这样的话从性能的角度来说，对CPU和内存来说都是欠佳的。特别是如果在我们的界面上有多个这样的UIButton实例。
+
 ## 支付宝SDK使用
 使用支付宝进行一个完整的支付功能，大致有以下步骤：向支付宝申请, 与支付宝签约，
 获得商户ID（partner）和账号ID（seller）和私钥(privateKey)。下载支付宝SDK，生成订单信息,

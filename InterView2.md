@@ -60,9 +60,53 @@ Therefore you should not rely on initialize for complex initialization, and shou
 - load方法没有自动释放池，如果做数据处理，需要释放内存，则开发者得自己添加autoreleasepool来管理内存的释放。
 - 和load不同，即使子类不实现initialize方法，也会把父类的实现继承过来调用一遍。注意的是在此之前， 父类的方法已经被执行过一次了，同样不需要super调用。
 
-  ## Fast Enumeration 的实现原理
+## NSObject的load和initialize方法
 
-  [Objective-C Fast Enumeration 的实现原理](http://blog.leichunfeng.com/blog/2016/06/20/objective-c-fast-enumeration-implementation-principle/)
+**load和initialize的共同特点** 在不考虑开发者主动使用的情况下，系统最多会调用一次 如果父类和子类都被调用，父类的调用一定在子类之前 都是为了应用运行提前创建合适的运行环境 在使用时都不要过重地依赖于这两个方法，除非真正必要
+
+**load和initialize的区别** **load方法**
+
+调用时机比较早，运行环境有不确定因素。具体说来，在iOS上通常就是App启动时进行加载， 但当load调用的时候，并不能保证所有类都加载完成且可用，必要时还要自己负责做auto release处理。 对于有依赖关系的两个库中，被依赖的类的load会优先调用。但在一个库之内，调用顺序是不确定的。
+
+对于一个类而言，没有load方法实现就不会调用，不会考虑对NSObject的继承。
+
+一个类的load方法不用写明[super load]，父类就会收到调用，并且在子类之前。
+
+Category的load也会收到调用，但顺序上在主类的load调用之后。
+
+不会直接触发initialize的调用。
+
+**initialize方法相关要点**
+
+initialize的自然调用是在第一次主动使用当前类的时候。
+
+在initialize方法收到调用时，运行环境基本健全。
+
+initialize的运行过程中是能保证线程安全的。
+
+和load不同，即使子类不实现initialize方法，会把父类的实现继承过来调用一遍。注意的是在此之前， 父类的方法已经被执行过一次了，同样不需要super调用。
+
+由于initialize的这些特点，使得其应用比load要略微广泛一些。可用来做一些初始化工作， 或者单例模式的一种实现方案。
+
+## 能否向编译后得到的类中增加实例变量？能否向运行时创建的类中添加实例变量？为什么？
+
+不能向编译后得到的类中增加实例变量； 能向运行时创建的类中添加实例变量；
+
+因为编译后的类已经注册在 runtime 中，类结构体中的 objc_ivar_list 实例变量的链表 和 instance_size 实例变量的内存大小已经确定，同时runtime 会调用 class_setIvarLayout 或 class_setWeakIvarLayout 来处理 strong weak 引用。所以不能向存在的类中添加实例变量；
+
+运行时创建的类是可以添加实例变量，调用 class_addIvar 函数。但是得在调用 objc_allocateClassPair 之后， objc_registerClassPair 之前，原因同上。
+
+## Fast Enumeration 的实现原理
+
+[Objective-C Fast Enumeration 的实现原理](http://blog.leichunfeng.com/blog/2016/06/20/objective-c-fast-enumeration-implementation-principle/)
+
+## loadView是干嘛用的？
+
+当你访问一个ViewController的view属性时，如果此时view的值是nil，那么， ViewController就会自动调用loadView这个方法。这个方法就会加载或者创建一个view对象，赋值给view属性。 loadView默认做的事情是：如果此ViewController存在一个对应的nib文件，那么就加载这个nib。 否则，就创建一个UIView对象。
+
+如果你用Interface Builder来创建界面，那么不应该重载这个方法。
+
+如果你想自己创建view对象，那么可以重载这个方法。此时你需要自己给view属性赋值。你自定义的方法不应该调用super。
 
 ## Object-C有私有方法吗？私有变量呢？
 
@@ -81,9 +125,11 @@ objective-c – 类里面的方法只有两种, 静态方法和实例方法. 这
 
 在Objective‐C中，所有实例变量默认都是私有的，所有实例方法默认都是公有的
 
-## 对block的理解
+## block
+### 对block的理解
 
-Block分为三种，分别是全局block、栈block和堆block。ARC之后，我们并不需要手动copy到堆上， 通常都已经交给编译器来完成。 1). 使用block和使用delegate完成委托模式有什么优点?
+Block分为三种，分别是全局block、栈block和堆block。ARC之后，我们并不需要手动copy到堆上， 通常都已经交给编译器来完成。
+1. 使用block和使用delegate完成委托模式有什么优点?
 
 首先要了解什么是委托模式，委托模式在iOS中大量应用，其在设计模式中是适配器模式中的对象适配器， Objective-C中使用id类型指向一切对象，使委托模式更为简洁。了解委托模式的细节：
 
@@ -93,7 +139,7 @@ iOS设计模式---委托模式
 
 适配对象不再需要实现具体某个protocol，代码更为简洁。
 
-2). 多线程与block
+2. 多线程与block
 
 GCD与Block
 
@@ -109,101 +155,8 @@ void?dispatch_async( dispatch_queue_t?queue, dispatch_block_t?block); 功能：�
 
 dispatch_async(dispatch_get_main_queue(),^(void){finishBlock();});
 
-## 为什么其他语言里叫函数调用， objective c里则是给对象发消息（或者谈下对runtime的理解）
 
-先来看看怎么理解发送消息的含义：
-
-曾经觉得Objc特别方便上手，面对着 Cocoa 中大量 API，只知道简单的查文档和调用。还记得初学 Objective-C 时把[receiver message]当成简单的方法调用，而无视了"发送消息"这句话的深刻含义。 于是[receiver message]会被编译器转化为： objc_msgSend(receiver, selector) 如果消息含有参数，则为： `objc_msgSend(receiver, selector, arg1, arg2, ...)`
-
-如果消息的接收者能够找到对应的selector，那么就相当于直接执行了接收者这个对象的特定方法； 否则，消息要么被转发，或是临时向接收者动态添加这个selector对应的实现内容，要么就干脆玩完崩溃掉。
-
-现在可以看出[receiver message]真的不是一个简简单单的方法调用。因为这只是在编译阶段确定了 要向接收者发送message这条消息，而receive将要如何响应这条消息，那就要看运行时发生的情况来决定了。
-
-Objective-C 的 Runtime 铸就了它动态语言的特性，这些深层次的知识虽然平时写代码用的少一些， 但是却是每个 Objc 程序员需要了解的。
-
-Objc Runtime使得C具有了面向对象能力，在程序运行时创建，检查，修改类、对象和它们的方法。 可以使用runtime的一系列方法实现。
-
-顺便附上OC中一个类的数据结构 /usr/include/objc/runtime.h
-
-```objc
-struct objc_class {
-    Class isa OBJC_ISA_AVAILABILITY; //isa指针指向Meta Class，
-    因为Objc的类的本身也是一个Object，为了处理这个关系，runtime就创造了Meta Class，
-    当给类发送[NSObject alloc]这样消息时，实际上是把这个消息发给了Class Object
-
-    #if !__OBJC2__
-    Class super_class OBJC2_UNAVAILABLE; // 父类
-    const char *name OBJC2_UNAVAILABLE; // 类名
-    long version OBJC2_UNAVAILABLE; // 类的版本信息，默认为0
-    long info OBJC2_UNAVAILABLE; // 类信息，供运行期使用的一些位标识
-    long instance_size OBJC2_UNAVAILABLE; // 该类的实例变量大小
-    struct objc_ivar_list *ivars OBJC2_UNAVAILABLE; // 该类的成员变量链表
-    struct objc_method_list **methodLists OBJC2_UNAVAILABLE; // 方法定义的链表
-    struct objc_cache *cache OBJC2_UNAVAILABLE; // 方法缓存，对象接到一个消息会根据isa
-    指针查找消息对象，这时会在method       Lists中遍历，如果cache了，常用的方法调用时就能够提高调用的效率。
-    struct objc_protocol_list *protocols OBJC2_UNAVAILABLE; // 协议链表
-    #endif
-
-    } OBJC2_UNAVAILABLE;
-```
-
-OC中一个类的对象实例的数据结构（/usr/include/objc/objc.h）:
-
-```objc
-typedef struct objc_class *Class;
-
-/// Represents an instance of a class.
-
-struct objc_object {
-
-    Class isa  OBJC_ISA_AVAILABILITY;
-
-};
-
-/// A pointer to an instance of a class.
-
-typedef struct objc_object *id;
-```
-
-向object发送消息时，Runtime库会根据object的isa指针找到这个实例object所属于的类， 然后在类的方法列表以及父类方法列表寻找对应的方法运行。id是一个objc_object结构类型的指针， 这个类型的对象能够转换成任何一种对象。
-
-然后再来看看消息发送的函数：objc_msgSend函数
-
-在引言中已经对objc_msgSend进行了一点介绍，看起来像是objc_msgSend返回了数据，其实objc_msgSend 从不返回数据而是你的方法被调用后返回了数据。下面详细叙述下消息发送步骤：
-
-检测这个 selector 是不是要忽略的。比如 Mac OS X 开发，有了垃圾回收就不理会 retain,release 这些函数了。 检测这个 target 是不是 nil 对象。ObjC 的特性是允许对一个 nil 对象执行任何一个方法不会 Crash，因为会被忽略掉。 如果上面两个都过了，那就开始查找这个类的 IMP，先从 cache 里面找，完了找得到就跳到对应的函数去执行。 如果 cache 找不到就找一下方法分发表。 如果分发表找不到就到超类的分发表去找，一直找，直到找到NSObject类为止。 如果还找不到就要开始进入动态方法解析了，后面会提到。
-
-后面还有： 动态方法解析resolveThisMethodDynamically 消息转发forwardingTargetForSelector
-
-## 对runtime的理解
-
-1. 消息是如何转发的？ 动态解析过程大致是这样的：通过resolveInstanceMethod允许开发者决定是否动态添加方法，若返回NO， 就直接进入doesNotRecognizeSelector，流程结束，否则需要通过class_addMethod动态添加方法 并返回YES并进入下一步。forwardingTargetForSelector是第二步，允许开发者决定将由哪个对象响应这个selector， 如果返回nil，则直接进入doesNotRecognizeSelector，流程结束，否则需要返回一个对象，但不能是self。 进入第三步指定方法签名methodSignatureForSelector，若返回nil， 则直接进入doesNotRecognizeSelector且流程结束，否则指定签名，并进入下一步forwardInvocation。 forwardInvocation允许开发者修改响应者、方法实现等。若没有实现forwardInvocation， 则直接进入doesNotRecognizeSelector，流程结束。
-
-2. 方法调用会被缓存吗？如何缓存过，又是如何查找的呢？ 方法是会缓存进来了，不然下次再调用又要重新查一次，效率是不高的。采用散列（哈希）的方式来缓存， 查询的效率是比较高的，因此内部会采用散列缓存起来。
-
-3. 对象的内存是如何布局的？ 成员变量（包括父类）都保存在对象本身的存储空间内；本类的实例方法保存在类对象中， 本类的类方法保存在元类对象中；父类的实例方法保存在各级super class中， 父类的类方法保存在各级super meta class中。
-
-4. runtime有哪些应用场景？
-
-5. 给category添加属性
-
-6. Method-Swizzling hook方法，然后交换方法实现来达到调用系统方法之前先做一些额外的处理
-
-7. 埋点处理
-
-8. 字典与模型互转
-
-9. 模型自动获取所有属性并转换成SQL语句操作数据库
-
-## oc是动态运行时语言是什么意思?
-
-多态。 主要是将数据类型的确定由编译时，推迟到了运行时。 这个问题其实浅涉及到两个概念，运行时和多态。 简单来说，运行时机制使我们直到运行时才去决定一个对象的类别，以及调用该类别对象指定方法。 多态：不同对象以自己的方式响应相同的消息的能力叫做多态。意思就是假设生物类(life)都用有一个相同的方法-eat; 那人类属于生物，猪也属于生物，都继承了life后，实现各自的eat，但是调用是我们只需调用各自的eat方法。 也就是不同的对象以自己的方式响应了相同的消息(响应了eat这个选择器)。
-
-### 关于多态性
-
-多态，子类指针可以赋值给父类。 这个题目其实可以出到一切面向对象语言中， 因此关于多态，继承和封装基本最好都有个自我意识的理解，也并非一定要把书上资料上写的能背出来
-
-## __block在arc和非arc下含义一样吗？
+### __block在arc和非arc下含义一样吗？
 
 是不一样的。 在MRC中**block variable在block中使用是不会retain的 但是ARC中**block则会Retain。 取而代之的是用**weak或是**unsafe_unretained來更精确的描述weak reference的目的 其中前者只能在iOS5之后可以使用，但是比较好 (该对象release之后，此pointer会自动设成成nil) 而后者是ARC的环境下为了兼容4.x的解決方案。
 
@@ -213,7 +166,7 @@ __weak MyClass* temp = …;    // ARC但只支援iOS5.0以上的版本
 __unsafe_retained MyClass* temp = …;  //ARC且可以兼容4.x以后的版本
 ```
 
-## block 实现原理
+### block 实现原理
 
 Objective-C是对C语言的扩展，block的实现是基于指针和函数指针。
 
@@ -233,48 +186,18 @@ __block是一种特殊类型，
 
 使用该关键字声明的局部变量，可以被block所改变，并且其在原函数中的值会被改变。
 
-## 对MVC和MVVM的理解 你还熟悉什么设计模式？
+### KVO，NSNotification，delegate及block区别
 
-MVC是出现比较早的架构设计模式，而且到现在已经是很成熟了。出现MVVM的原因是MVC中的V越来越复杂， 于是才有人想要给V瘦身。
+KVO就是cocoa框架实现的观察者模式，一般同KVC搭配使用，通过KVO可以监测一个值的变化， 比如View的高度变化。是一对多的关系，一个值的变化会通知所有的观察者。
 
-> 设计模式：并不是一种新技术，而是一种编码经验，使用比如java中的接口，iphone中的协议， 继承关系等基本手段，用比较成熟的逻辑去处理某一种类型的事情，总结为所谓设计模式。 面向对象编程中，java已经归纳了23种设计模式。
+NSNotification是通知，也是一对多的使用场景。在某些情况下，KVO和NSNotification是一样的， 都是状态变化之后告知对方。NSNotification的特点，就是需要被观察者先主动发出通知， 然后观察者注册监听后再来进行响应，比KVO多了发送通知的一步，但是其优点是监听不局限于属性的变化， 还可以对多种多样的状态变化进行监听，监听范围广，使用也更灵活。
 
-- mvc设计模式 ：模型，视图，控制器，可以将整个应用程序在思想上分成三大块，对应是的数据的存储或处理， 前台的显示，业务逻辑的控制。 Iphone本身的设计思想就是遵循mvc设计模式。其不属于23种设计模式范畴。
+delegate 是代理，就是我不想做的事情交给别人做。比如狗需要吃饭，就通过delegate通知主人， 主人就会给他做饭、盛饭、倒水，这些操作，这些狗都不需要关心，只需要调用delegate（代理人）就可以了， 由其他类完成所需要的操作。所以delegate是一对一关系。
 
-- 代理模式：代理模式给某一个对象提供一个代理对象，并由代理对象控制对源对象的引用. 比如一个工厂生产了产品，并不想直接卖给用户，而是搞了很多代理商，用户可以直接找代理商买东西， 代理商从工厂进货.常见的如QQ的自动回复就属于代理拦截，代理模式在iphone中得到广泛应用.
+block是delegate的另一种形式，是函数式编程的一种形式。使用场景跟delegate一样，相比delegate更灵活， 而且代理的实现更直观。
 
-- 单例模式：说白了就是一个类不通过alloc方式创建对象，而是用一个静态方法返回这个类的对象。 系统只需要拥有一个的全局对象，这样有利于我们协调系统整体的行为， 比如想获得[UIApplication sharedApplication];任何地方调用都可以得到 UIApplication的对象， 这个对象是全局唯一的。
+KVO一般的使用场景是数据，需求是数据变化，比如股票价格变化，我们一般使用KVO（观察者模式）。 delegate一般的使用场景是行为，需求是需要别人帮我做一件事情，比如买卖股票，我们一般使用delegate。 Notification一般是进行全局通知，比如利好消息一出，通知大家去买入。delegate是强关联， 就是委托和代理双方互相知道，你委托别人买股票你就需要知道经纪人，经纪人也不要知道自己的顾客。 Notification是弱关联，利好消息发出，你不需要知道是谁发的也可以做出相应的反应， 同理发消息的人也不需要知道接收的人也可以正常发出消息。
 
-- 观察者模式： 当一个物体发生变化时，会通知所有观察这个物体的观察者让其做出反应。 实现起来无非就是把所有观察者的对象给这个物体，当这个物体的发生改变， 就会调用遍历所有观察者的对象调用观察者的方法从而达到通知观察者的目的。
-
-- 工厂模式：
-
-  ```objc
-  public class Factory{
-  public static Sample creator(int which){
-  if (which==1)
-  return new SampleA();
-  else if (which==2)
-  return new SampleB();
-  }
-  }
-  ```
-
-  ### 对于单例(Singleton)的理解
-
-  在objective-c中要实现一个单例类，至少需要做以下四个步骤：
-
-- 为单例对象实现一个静态实例，并初始化，然后设置成nil。
-
-- 实现一个实例构造方法检查上面声明的静态实例是否为nil，如果是则新建并返回一个本类的实例，
-
-- 重写allocWithZone方法，用来保证其他人直接使用alloc和init试图获得一个新实力的时候不产生一个新实例，
-
-- 适当实现allocWitheZone，copyWithZone，release和autorelease。
-
-## 如何使用Xcode设计通用应用?
-
-使用MVC模式设计应用，其中Model层完成脱离界面，即在Model层，其是可运行在任何设备上， 在controller层，根据iPhone与iPad(独有UISplitViewController)的不同特点选择不同的viewController对象。 在View层，可根据现实要求，来设计，其中以xib文件设计时，其设置其为universal。
 
 ## 对ARC的理解
 
@@ -290,7 +213,56 @@ ARC下对于属性修饰符不同，其内存管理策略也不一样：
 
 ARC下还是有可能出现内存泄露的，内存得不到释放，特别是使用block的时候，一定要学会分析是否形成循环引用。
 
-## __weak
+### 内存管理的几条原则是什么?按照默认法则.那些关键字生成的对象需要手动释放?在和property结合的时候怎样有效的避免内存泄露?
+
+谁申请，谁释放 遵循Cocoa Touch的使用原则; 内存管理主要要避免"过早释放"和"内存泄漏"，对于"过早释放"需要注意@property设置特性时， 一定要用对特性关键字，对于"内存泄漏"，一定要申请了要负责释放，要细心。 关键字alloc 或new 生成的对象需要手动释放; 设置正确的property属性，对于retain需要在合适的地方释放，
+
+### ARC和MRC
+
+Objective-c中提供了两种内存管理机制MRC（MannulReference Counting）和ARC(Automatic Reference Counting)， 分别提供对内存的手动和自动管理，来满足不同的需求。Xcode 4.1及其以前版本没有ARC。
+
+在MRC的内存管理模式下，与对变量的管理相关的方法有：retain,release和autorelease。 retain和release方法操作的是引用记数，当引用记数为零时，便自动释放内存。 并且可以用NSAutoreleasePool对象，对加入自动释放池（autorelease调用）的变量进行管理，当drain时回收内存。
+
+1. retain，该方法的作用是将内存数据的所有权附给另一指针变量，引用数加1，即retainCount+= 1;
+2. release，该方法是释放指针变量对内存数据的所有权，引用数减1，即retainCount-= 1;
+3. autorelease，该方法是将该对象内存的管理放到autoreleasepool中。
+
+在ARC中与内存管理有关的标识符，可以分为变量标识符和属性标识符，对于变量默认为__strong， 而对于属性默认为unsafe_unretained。也存在autoreleasepool。
+
+其中assign/retain/copy与MRC下property的标识符意义相同，strong类似与retain,assign类似于unsafe_unretained，strong/weak/unsafe_unretained与ARC下变量标识符意义相同，只是一个用于属性的标识， 一个用于变量的标识(带两个下划短线__)。所列出的其他的标识符与MRC下意义相同。
+
+### Objective-C如何对内存管理的,说说你的看法和解决方法?
+
+Objective-C的内存管理主要有三种方式ARC(自动内存计数)、手动内存计数、内存池。
+
+1. (Garbage Collection)自动内存计数：这种方式和java类似，在你的程序的执行过程中。 始终有一个高人在背后准确地帮你收拾垃圾，你不用考虑它什么时候开始工作，怎样工作。你只需要明白， 我申请了一段内存空间，当我不再使用从而这段内存成为垃圾的时候，我就彻底的把它忘记掉， 反正那个高人会帮我收拾垃圾。遗憾的是，那个高人需要消耗一定的资源，在携带设备里面， 资源是紧俏商品所以iPhone不支持这个功能。所以"Garbage Collection"不是本入门指南的范围， 对"Garbage Collection"内部机制感兴趣的同学可以参考一些其他的资料， 不过说老实话"Garbage Collection"不大适合适初学者研究。
+
+解决: 通过alloc – initial方式创建的, 创建后引用计数+1, 此后每retain一次引用计数+1, 那么在程序中做相应次数的release就好了.
+
+1. (Reference Counted)手动内存计数：就是说，从一段内存被申请之后， 就存在一个变量用于保存这段内存被使用的次数，我们暂时把它称为计数器，当计数器变为0的时候， 那么就是释放这段内存的时候。比如说，当在程序A里面一段内存被成功申请完成之后， 那么这个计数器就从0变成1(我们把这个过程叫做alloc)，然后程序B也需要使用这个内存， 那么计数器就从1变成了2(我们把这个过程叫做retain)。紧接着程序A不再需要这段内存了， 那么程序A就把这个计数器减1(我们把这个过程叫做release);程序B也不再需要这段内存的时候， 那么也把计数器减1(这个过程还是release)。当系统(也就是Foundation)发现这个计数器变 成员了0， 那么就会调用内存回收程序把这段内存回收(我们把这个过程叫做dealloc)。 顺便提一句，如果没有Foundation，那么维护计数器，释放内存等等工作需要你手工来完成。
+
+解决:一般是由类的静态方法创建的, 函数名中不会出现alloc或init字样, 如[NSString string]和[NSArray arrayWithObject:], 创建后引用计数+0, 在函数出栈后释放, 即相当于一个栈上的局部变量. 当然也可以通过retain延长对象的生存期.
+
+1. (NSAutoRealeasePool)内存池：可以通过创建和释放内存池控制内存申请和回收的时机.
+
+解决:是由autorelease加入系统内存池, 内存池是可以嵌套的, 每个内存池都需要有一个创建释放对, 就像main函数中写的一样. 使用也很简单, 比如[[[NSString alloc]initialWithFormat:@"Hey you!"] autorelease], 即将一个NSString对象加入到最内层的系统内存池, 当我们释放这个内存池时, 其中的对象都会被释放.
+
+### 如果我们不创建内存池，是否有内存池提供给我们?
+
+界面线程维护着自己的内存池，用户自己创建的数据线程，则需要创建该线程的内存池
+
+### 什么时候需要在程序中创建内存池?
+
+用户自己创建的数据线程，则需要创建该线程的内存池
+### 自动释放池(autoreleasepool)是什么,如何工作
+
+当您向一个对象发送一个autorelease消息时，Cocoa就会将该对象的一个引用放入到最新的自动释放. 它仍然是个正当的对象，因此自动释放池定义的作用域内的其它对象可以向它发送消息。 当程序执行到作用域结束的位置时，自动释放池就会被释放，池中的所有对象也就被释放。
+
+### OC的垃圾回收机制?
+
+OC2.0有Garbage collection，但是iOS平台不提供。 一般我们了解的objective-c对于内存管理都是手动操作的，但是也有自动释放池。 但是差了大部分资料，貌似不要和arc机制搞混就好了。
+
+### __weak
 
 当一个__weak 类型的指针指向的对象被释放时,该指针会自动被置成nil.
 
@@ -331,7 +303,7 @@ weak表和引用计数表类似，都是通过hash表实现的。如果使用wea
 
 如果大量使用附有__weak修饰符的变量会消耗响应的CPU资源，因此，应该尽量少使用__weak修饰符.
 
-## 野指针是什么，iOS开发中什么情况下会有野指针？
+### 野指针是什么，iOS开发中什么情况下会有野指针？
 
 所谓野指针，是指指向内存已经被释放的内存区的指针。
 
@@ -356,9 +328,8 @@ NSArray *array = [[NSArray alloc] initWithObjects:@"sss", nil, @"sfsdf"];
 NSLog(@"%@", array);
 ```
 
-## Object-c的类可以多重继承么?可以实现多个接口么?Category是什么?
-
-重写一个类的方式用继承好还是分类好?为什么? Object-c的类不可以多重继承;可以实现多个接口，通过实现多个接口可以完成C++的多重继承;Category是类别， 一般情况用分类好，用Category去重写类的方法，仅对本Category有效，不会影响到其他类与原有类的关系。
+## Object-c的类可以多重继承么?可以实现多个接口么?Category是什么?重写一个类的方式用继承好还是分类好?为什么?
+Object-c的类不可以多重继承;可以实现多个接口，通过实现多个接口可以完成C++的多重继承;Category是类别， 一般情况用分类好，用Category去重写类的方法，仅对本Category有效，不会影响到其他类与原有类的关系。多继承在这里是用protocol 委托代理 来实现的
 
 ## #import 跟#include 又什么区别，@class呢, #import<> 跟 #import""又什么区别
 
@@ -366,17 +337,6 @@ NSLog(@"%@", array);
 
 # import<>用来包含系统的头文件，#import""用来包含用户头文件。
 
-## Object-C有多继承吗？没有的话用什么代替？cocoa 中所有的类都是NSObject 的子类
-
-多继承在这里是用protocol 委托代理 来实现的
-
-你不用去考虑繁琐的多继承 ,虚基类的概念.
-
-ood的多态特性 在 obj-c 中通过委托来实现.
-
-## 对于语句NSString*obj = [[NSData alloc] init]; obj在编译时和运行时分别时什么类型的对象?
-
-编译时是NSString的类型;运行时是NSData类型的对象
 
 ## 常见的object-c的数据类型有那些， 和C的基本数据类型有什么区别?如：NSInteger和int
 
@@ -385,31 +345,6 @@ object-c的数据类型有NSString，NSNumber，NSArray，NSMutableArray，NSDat
 ## id 声明的对象有什么特性?
 
 Id 声明的对象具有运行时的特性，即可以指向任意类型的objcetive-c的对象;
-
-## Objective-C如何对内存管理的,说说你的看法和解决方法?
-
-Objective-C的内存管理主要有三种方式ARC(自动内存计数)、手动内存计数、内存池。
-
-1. (Garbage Collection)自动内存计数：这种方式和java类似，在你的程序的执行过程中。 始终有一个高人在背后准确地帮你收拾垃圾，你不用考虑它什么时候开始工作，怎样工作。你只需要明白， 我申请了一段内存空间，当我不再使用从而这段内存成为垃圾的时候，我就彻底的把它忘记掉， 反正那个高人会帮我收拾垃圾。遗憾的是，那个高人需要消耗一定的资源，在携带设备里面， 资源是紧俏商品所以iPhone不支持这个功能。所以"Garbage Collection"不是本入门指南的范围， 对"Garbage Collection"内部机制感兴趣的同学可以参考一些其他的资料， 不过说老实话"Garbage Collection"不大适合适初学者研究。
-
-解决: 通过alloc – initial方式创建的, 创建后引用计数+1, 此后每retain一次引用计数+1, 那么在程序中做相应次数的release就好了.
-
-1. (Reference Counted)手动内存计数：就是说，从一段内存被申请之后， 就存在一个变量用于保存这段内存被使用的次数，我们暂时把它称为计数器，当计数器变为0的时候， 那么就是释放这段内存的时候。比如说，当在程序A里面一段内存被成功申请完成之后， 那么这个计数器就从0变成1(我们把这个过程叫做alloc)，然后程序B也需要使用这个内存， 那么计数器就从1变成了2(我们把这个过程叫做retain)。紧接着程序A不再需要这段内存了， 那么程序A就把这个计数器减1(我们把这个过程叫做release);程序B也不再需要这段内存的时候， 那么也把计数器减1(这个过程还是release)。当系统(也就是Foundation)发现这个计数器变 成员了0， 那么就会调用内存回收程序把这段内存回收(我们把这个过程叫做dealloc)。 顺便提一句，如果没有Foundation，那么维护计数器，释放内存等等工作需要你手工来完成。
-
-解决:一般是由类的静态方法创建的, 函数名中不会出现alloc或init字样, 如[NSString string]和[NSArray arrayWithObject:], 创建后引用计数+0, 在函数出栈后释放, 即相当于一个栈上的局部变量. 当然也可以通过retain延长对象的生存期.
-
-1. (NSAutoRealeasePool)内存池：可以通过创建和释放内存池控制内存申请和回收的时机.
-
-解决:是由autorelease加入系统内存池, 内存池是可以嵌套的, 每个内存池都需要有一个创建释放对, 就像main函数中写的一样. 使用也很简单, 比如[[[NSString alloc]initialWithFormat:@"Hey you!"] autorelease], 即将一个NSString对象加入到最内层的系统内存池, 当我们释放这个内存池时, 其中的对象都会被释放.
-
-## 使用nonatomic一定是线程安全的吗？
-
-不是的。 atomic原子操作，系统会为setter方法加锁。 具体使用 @synchronized(self){//code } nonatomic不会为setter方法加锁。 atomic：线程安全，需要消耗大量系统资源来为属性加锁 nonatomic：非线程安全，适合内存较小的移动设备
-
-## 原子(atomic)跟非原子(non-atomic)属性有什么区别?
-
-1. atomic提供多线程安全。是防止在写未完成的时候被另外一个线程读取，造成数据错误
-2. non-atomic:在自己管理内存的环境中，解析的访问器保留并自动释放返回的值， 如果指定了 nonatomic ，那么访问器只是简单地返回这个值。
 
 ## 看下面的程序,第一个NSLog会输出什么?这时str的retainCount是多少?第二个和第三个呢? 为什么?
 
@@ -429,14 +364,6 @@ NSLog(@”%@%d”,str,[str?retainCount]);
 
 str的retainCount创建+1，retain+1，加入数组自动+1 3 retain+1，release-1，release-1 2 数组删除所有对象，所有数组内的对象自动-1 1
 
-## 内存管理的几条原则是什么?按照默认法则.那些关键字生成的对象需要手动释放?在和property结合的时候怎样有效的避免内存泄露?
-
-谁申请，谁释放 遵循Cocoa Touch的使用原则; 内存管理主要要避免"过早释放"和"内存泄漏"，对于"过早释放"需要注意@property设置特性时， 一定要用对特性关键字，对于"内存泄漏"，一定要申请了要负责释放，要细心。 关键字alloc 或new 生成的对象需要手动释放; 设置正确的property属性，对于retain需要在合适的地方释放，
-
-## Object C中创建线程的方法是什么?如果在主线程中执行代码，
-
-方法是什么?如果想延时执行代码、方法又是什么? 线程创建有三种方法：使用NSThread创建、使用GCD的dispatch、使用子类化的NSOperation, 然后将其加入NSOperationQueue;在主线程执行代码，方法是`performSelectorOnMainThread`， 如果想延时执行代码可以用`performSelector:onThread:withObject:waitUntilDone:`
-
 ## Category
 
 Category用于向已经存在的类添加方法从而达到扩展已有类的目的，在很多情形下Category也是比创建子类更优的选择。 Category用于大型类有效分解。新添加的方法会被被扩展的类的所有子类自动继承。 Category也可以用于替代这个已有类中某个方法的实体，从而达到修复BUG的目的。 如此就不能去调用已有类中原有的那个被替换掉方法实体了。需要注意的是，当准备有Category来替换某一个方法的时候， 一定要保证实现原来方法的所有功能，否则这种替代就是没有意义而且会引起新的BUG。
@@ -450,7 +377,7 @@ Category的方法不一定非要在@implementation中实现，也可以在其他
 和子类不同的是，Category不能用于向被扩展类添加实例变量。Category通常作为一种组织框架代码的工具来使用。
 如果需要添加一个新的变量，则需添加子类。如果只是添加一个新的方法，用Category是比较好的选择。
 
-## 在Category中实现属性
+### 在Category中实现属性
 做开发时我们常常会需要在已经实现了的类中增加一些方法，这时候我们一般会用Category的方式来做。但是这样做我们也只能扩展一些方法，而有时候我们更多的是想给它增加一个属性。由于类已经是编译好的了，就不能静态的增加成员了，这样我们就需要自己来实现getter和setter方法了，在这些方法中动态的读写属性变量来实现属性。一种比较简单的做法是使用Objective-C运行时的这两个方法：
 ```objc
 void objc_setAssociatedObject(id object, const void *key, id value, objc_AssociationPolicy policy);
@@ -579,7 +506,7 @@ _free_internal(mlists);
 
 这也即是我们上面说的Category修复Bug的原理。 **Extension** Extension非常像是没有命名的类别。扩展只是用来定义类的私有方法的，实现要在原始的.m里面。 还以用来改变原始属性的一些性质。一般的时候，Extension都是放在.m文件中@implementation的上方。 Extension中的方法必须在@implementation中实现，否则编译会报错。Category没有源代码的类添加方法， 格式：定义一对.h和.m。Extension作用于管理类的所有方法，格式：把代码写到原始类的.m文件中。
 
-## 类别(category)的作用?继承和类别在实现中有何区别?
+### 类别(category)的作用?继承和类别在实现中有何区别?
 
 category 可以在不获悉，不改变原来代码的情况下往里面添加新的方法，只能添加，不能删除修改， 并且如果类别和原来类中的方法产生名称冲突，则类别将覆盖原来的方法，因为类别具有更高的优先级。
 
@@ -589,11 +516,11 @@ category 可以在不获悉，不改变原来代码的情况下往里面添加�
 2. 创建对私有方法的前向引用。
 3. 向对象添加非正式协议。 继承可以增加，修改或者删除方法，并且可以增加属性。
 
-## 类别和类扩展的区别
+### 类别和类扩展的区别
 
   category和extensions的不同在于 后者可以添加属性。另外后者添加的方法是必须要实现的。 extensions可以认为是一个私有的Category。
 
-## oc中的协议和java中的接口概念有何不同?
+### oc中的协议和java中的接口概念有何不同?
 
 OC中的代理有2层含义，官方定义为 formal和informal protocol。前者和Java接口一样。 informal protocol中的方法属于设计模式考虑范畴，不是必须实现的，但是如果有实现，就会改变类的属性。 其实关于正式协议，类别和非正式协议我很早前学习的时候大致看过，也写在了学习教程里 "非正式协议概念其实就是类别的另一种表达方式"这里有一些你可能希望实现的方法，你可以使用他们更好的完成工作"。 这个意思是，这些是可选的。比如我门要一个更好的方法，我们就会申明一个这样的类别去实现。然后你在后期可以直接使用这些更好的方法。 这么看，总觉得类别这玩意儿有点像协议的可选协议。" 现在来看，其实protocal已经开始对两者都统一和规范起来操作，因为资料中说"非正式协议使用interface修饰"， 现在我们看到协议中两个修饰词："必须实现(@requied)"和"可选实现(@optional)"。
 
@@ -650,13 +577,6 @@ notification针对one-to-one/many/none,reciver,用于通知多个object某个事
 
 事件响应链。包括点击事件，画面刷新事件等。在视图栈内从上至下，或者从下之上传播。 可以说点事件的分发，传递以及处理。具体可以去看下touch事件这块。 可以从责任链模式，来讲通过事件响应链处理，其拥有的扩展性
 
-## OC的垃圾回收机制?
-
-OC2.0有Garbage collection，但是iOS平台不提供。 一般我们了解的objective-c对于内存管理都是手动操作的，但是也有自动释放池。 但是差了大部分资料，貌似不要和arc机制搞混就好了。
-
-## NSOperation queue?
-
-存放NSOperation的集合类。 操作和操作队列，基本可以看成java中的线程和线程池的概念。用于处理ios多线程开发的问题。 网上部分资料提到一点是，虽然是queue，但是却并不是带有队列的概念，放入的操作并非是按照严格的先进现出。 这边又有个疑点是，对于队列来说，先进先出的概念是Afunc添加进队列，Bfunc紧跟着也进入队列，Afunc先执行这个是必然的， 但是Bfunc是等Afunc完全操作完以后，B才开始启动并且执行，因此队列的概念离乱上有点违背了多线程处理这个概念。 但是转念一想其实可以参考银行的取票和叫号系统。 因此对于A比B先排队取票但是B率先执行完操作，我们亦然可以感性认为这还是一个队列。 但是后来看到一票关于这操作队列话题的文章，其中有一句提到 "因为两个操作提交的时间间隔很近，线程池中的线程，谁先启动是不定的。" 瞬间觉得这个queue名字有点忽悠人了，还不如pool~ 综合一点，我们知道他可以比较大的用处在于可以帮组多线程编程就好了。
 
 ## Lazy load
 
@@ -682,14 +602,6 @@ UITableVIew的Data Source方法有- (NSInteger)tableView:(UITableView *)tableVie
 
 - (UITableViewCell _)tableView:(UITableView_ )tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath;
 
-## 如果我们不创建内存池，是否有内存池提供给我们?
-
-界面线程维护着自己的内存池，用户自己创建的数据线程，则需要创建该线程的内存池
-
-## 什么时候需要在程序中创建内存池?
-
-用户自己创建的数据线程，则需要创建该线程的内存池
-
 ## 类NSObject的哪些方法经常被使用?
 
 NSObject是Objetive-C的基类，其由NSObject类及一系列协议构成。 其中类方法alloc、class、 description 对象方法init、dealloc、– performSelector:withObject:afterDelay:等经常被使用
@@ -702,27 +614,30 @@ NSObject是Objetive-C的基类，其由NSObject类及一系列协议构成。 �
 
 UIViewAnimationOptionCurveEaseInOut UIViewAnimationOptionCurveEaseIn UIViewAnimationOptionCurveEaseOut UIViewAnimationOptionTransitionFlipFromLeft UIViewAnimationOptionTransitionFlipFromRight UIViewAnimationOptionTransitionCurlUp UIViewAnimationOptionTransitionCurlDown
 
-## 在iPhone应用中如何保存数据?
+## 数据持久化
 
 1. 通过web服务，保存在服务器上
 2. 通过NSCoder固化机制，将对象保存在文件中
 3. 通过SQlite或CoreData保存在文件数据库中
 
-## ios 平台怎么做数据的持久化?coredata 和sqlite有无必然联系？coredata是一个关系型数据库吗？
+### ios 平台怎么做数据的持久化?coredata 和sqlite有无必然联系？coredata是一个关系型数据库吗？
 
 iOS 中可以有四种持久化数据的方式：属性列表(plist)、对象归档、 SQLite3 和 Core Data； core data 可以使你以图形界面的方式快速的定义 app 的数据模型，同时在你的代码中容易获取到它。 coredata 提供了基础结构去处理常用的功能，例如保存，恢复，撤销和重做，允许你在 app 中继续创建新的任务。 在使用 core data 的时候，你不用安装额外的数据库系统，因为 core data 使用内置的 sqlite 数据库。 core data 将你 app 的模型层放入到一组定义在内存中的数据对象。 coredata 会追踪这些对象的改变， 同时可以根据需要做相反的改变，例如用户执行撤销命令。当 core data 在对你 app 数据的改变进行保存的时候， core data 会把这些数据归档，并永久性保存。 mac os x 中sqlite 库，它是一个轻量级功能强大的关系数据引擎， 也很容易嵌入到应用程序。可以在多个平台使用， sqlite 是一个轻量级的嵌入式 sql 数据库编程。 与 core data 框架不同的是， sqlite 是使用程序式的， sql 的主要的 API 来直接操作数据表。 Core Data 不是一个关系型数据库，也不是关系型数据库管理系统 (RDBMS) 。虽然 Core Dta 支持SQLite 作为一种存储类型，但它不能使用任意的 SQLite 数据库。 Core Data 在使用的过程种自己创建这个数据库。 Core Data 支持对一、对多的关系。
 
-## 和coredata一起有哪几种持久化存储机制?
+### 和coredata一起有哪几种持久化存储机制?
 
 存入到文件、 存入到NSUserDefaults(系统plist文件中)、存入到Sqlite文件数据库
 
-## 什么是NSManagedObject模型?
+### 什么是NSManagedObject模型?
 
 NSManagedObject是NSObject的子类 ，也是coredata的重要组成部分，它是一个通用的类,实现了core data 模型层所需的基本功能，用户可通过子类化NSManagedObject，建立自己的数据模型。
 
-## 什么是NSManagedobjectContext?
+### 什么是NSManagedobjectContext?
 
 NSManagedobjectContext对象负责应用和数据库之间的交互。
+### 你实现过多线程的Core Data么？NSPersistentStoreCoordinator，NSManagedObjectContext
+
+和NSManagedObject中的哪些需要在线程中创建或者传递？你是用什么样的策略来实现的？ <https://onevcat.com/2014/03/common-background-practices/>
 
 ## NSPredicate
 
@@ -732,10 +647,6 @@ NSManagedobjectContext对象负责应用和数据库之间的交互。
 predicate = [NSPredicate predicateWithFormat:@"customerID == %d",n];
 a = [customers filteredArrayUsingPredicate:predicate];
 ```
-
-## 简单介绍下NSURLConnection类及+ sendSynchronousRequest:returningResponse:error:
-
-与– initWithRequest:delegate:两个方法的区别? NSURLConnection主要用于网络访问，其中+ sendSynchronousRequest:returningResponse:error: 是同步访问数据，即当前线程会阻塞，并等待request的返回的response，而– initWithRequest:delegate: 使用的是异步加载，当其完成网络访问后，会通过delegate回到主线程，并其委托的对象。
 
 ## ViewController的didReceiveMemoryWarning怎么被调用：
 
@@ -868,61 +779,6 @@ long square(volatile int *ptr) { int a; a = *ptr; return a * a; }
 4. 在类中的 static 成员变量属于整个类所拥有，对类的所有对象只有一份拷贝；
 5. 在类中的 static 成员函数属于整个类所拥有，这个函数不接收 this 指针，因而只能访问类的static 成员变量。
 
-## iOS的系统架构
-
-iOS的系统架构分为（ 核心操作系统层 theCore OS layer ）、（ 核心服务层theCore Services layer ）、 （ 媒体层 theMedia layer ）和（ Cocoa 界面服务层 the Cocoa Touch layer ）四个层次。
-
-## cocoa touch框架
-
-iPhone OS 应用程序的基础 Cocoa Touch 框架重用了许多 Mac 系统的成熟模式， 但是它更多地专注于触摸的接口和优化。
-
-UIKit 为您提供了在 iPhone OS 上实现图形，事件驱动程序的基本工具，其建立在和 Mac OS X 中一样的 Foundation 框架上，包括文件处理，网络，字符串操作等。
-
-Cocoa Touch 具有和 iPhone 用户接口一致的特殊设计。有了 UIKit，您可以使用 iPhone OS 上的独特的图形接口控件，按钮，以及全屏视图的功能，您还可以使用加速仪和多点触摸手势来控制您的应用。
-
-各色俱全的框架 除了UIKit 外，Cocoa Touch 包含了创建世界一流 iPhone 应用程序需要的所有框架， 从三维图形，到专业音效，甚至提供设备访问 API 以控制摄像头，或通过 GPS 获知当前位置。
-
-Cocoa Touch 既包含只需要几行代码就可以完成全部任务的强大的 Objective-C 框架， 也在需要时提供基础的 C 语言 API 来直接访问系统。这些框架包括：
-
-Core Animation：通过 Core Animation，您就可以通过一个基于组合独立图层的简单的编程模型来创建丰富的用户体验。
-
-Core Audio：Core Audio 是播放，处理和录制音频的专业技术，能够轻松为您的应用程序添加强大的音频功能。
-
-Core Data：提供了一个面向对象的数据管理解决方案，它易于使用和理解，甚至可处理任何应用或大或小的数据模型。
-
-功能列表：框架分类
-
-下面是 Cocoa Touch 中一小部分可用的框架：
-
-音频和视频：Core Audio ，OpenAL ，Media Library ，AV Foundation
-
-数据管理 ：Core Data ，SQLite
-
-图形和动画 ：Core Animation ，OpenGL ES ，Quartz 2D
-
-网络：Bonjour ，WebKit ，BSD Sockets
-
-用户应用：Address Book ，Core Location ，Map Kit ，Store Kit
-
-## 自动释放池(autoreleasepool)是什么,如何工作
-
-当您向一个对象发送一个autorelease消息时，Cocoa就会将该对象的一个引用放入到最新的自动释放. 它仍然是个正当的对象，因此自动释放池定义的作用域内的其它对象可以向它发送消息。 当程序执行到作用域结束的位置时，自动释放池就会被释放，池中的所有对象也就被释放。
-
-## Objective-C的优缺点。
-
-objc优点：
-
-1. Cateogies
-2. ?Posing
-3. 动态识别
-4. 指标计算
-5. 弹性讯息传递
-6. 不是一个过度复杂的 C 衍生语言
-7. Objective-C 与 C++ 可混合编程 objc缺点:
-8. 不支援命名空间
-9. 不支持运算符重载
-10. 不支持多重继承
-11. 使用动态运行时类型，所有的方法都是函数调用，所以很多编译时优化方法都用不到。（如内联函数等），性能低劣。
 
 ## sprintf,strcpy,memcpy使用上有什么要注意的地方。
 
@@ -984,11 +840,6 @@ AVFoundation.framework
 
 ui框架，导入320工程作为框架包如同添加一个普通框架一样。cover(open) ?flower框架 (2d 仿射技术)， 内部核心类是CATransform3D.
 
-## 什么是沙盒模型？哪些操作是属于私有api范畴?
-
-某个iphone工程进行文件操作有此工程对应的指定的位置，不能逾越。
-
-iphone沙箱模型的有四个文件夹documents，tmp，app，Library，永久数据存储一般放documents文件夹， 得到模拟器的路径的可使用NSHomeDirectory()方法。Nsuserdefaults保存的文件在tmp文件夹里。
 
 ## 在一个对象的方法里面：self.name= "object"；和 name ="object" 有什么不同吗?
 
@@ -1013,38 +864,6 @@ File's Owner 是所有 nib 文件中的每个图标，它表示从磁盘加载 n
 First Responder 就是用户当前正在与之交互的对象；
 
 View 显示用户界面；完成用户交互；是 UIView 类或其子类。
-
-## 如何高性能的给UIImageView加个圆角？（不准说layer.cornerRadius!）
-
-我觉得应该是使用Quartz2D直接绘制图片,得把这个看看。 步骤：
-
-1. 创建目标大小(cropWidth，cropHeight)的画布。
-2. 使用UIImage的drawInRect方法进行绘制的时候，指定rect为(-x，-y，width，height)。
-3. 从画布中得到裁剪后的图像。
-
-```objc
-- (UIImage*)cropImageWithRect:(CGRect)cropRect
-{
-    CGRect drawRect = CGRectMake(-cropRect.origin.x , -cropRect.origin.y, self.size.width * self.scale, self.size.height * self.scale);
-
-    UIGraphicsBeginImageContext(cropRect.size);
-    CGContextRef context = UIGraphicsGetCurrentContext();
-    CGContextClearRect(context, CGRectMake(0, 0, cropRect.size.width, cropRect.size.height));
-
-    [self drawInRect:drawRect];
-
-    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
-
-    return image;
-}
-
-@end
-```
-
-## 使用drawRect有什么影响？（这个可深可浅，你至少得用过。。）
-
-drawRect方法依赖Core Graphics框架来进行自定义的绘制，但这种方法主要的缺点就是它处理touch事件的方式： 每次按钮被点击后，都会用setNeddsDisplay进行强制重绘；而且不止一次，每次单点事件触发两次执行。 这样的话从性能的角度来说，对CPU和内存来说都是欠佳的。特别是如果在我们的界面上有多个这样的UIButton实例。
 
 ## 简述视图控件器的生命周期。
 
@@ -1117,7 +936,7 @@ grayCover = [[CALayer alloc] init];
 
 以 DOM 方式解析 XML 文件；以 SAX 方式解析 XML 文件；
 
-## tableView 的重用机制
+## **tableView 的重用机制**
 
 UITableView 通过重用单元格来达到节省内存的目的: 通过为每个单元格指定一个重用标识符(reuseIdentifier), 即指定了单元格的种类,以及当单元格滚出屏幕时,允许恢复单元格以便重用.对于不同种类的单元格使用不同的ID,对于简单的表格,一个标识符就够了.
 
@@ -1147,13 +966,6 @@ __weak typedof(self)weakSelf = self
 
 图片的内存缓存，可以考虑将图片数据保存到一个数据模型中。所以在程序运行时这个模型都存在内存中。 移除策略：释放数据模型对象。
 
-## loadView是干嘛用的？
-
-当你访问一个ViewController的view属性时，如果此时view的值是nil，那么， ViewController就会自动调用loadView这个方法。这个方法就会加载或者创建一个view对象，赋值给view属性。 loadView默认做的事情是：如果此ViewController存在一个对应的nib文件，那么就加载这个nib。 否则，就创建一个UIView对象。
-
-如果你用Interface Builder来创建界面，那么不应该重载这个方法。
-
-如果你想自己创建view对象，那么可以重载这个方法。此时你需要自己给view属性赋值。你自定义的方法不应该调用super。
 
 ## 如果你需要对view做一些其他的定制操作，在viewDidLoad里面去做。
 
@@ -1189,10 +1001,6 @@ else {
 
 通过上述一个函数就知道横竖屏切换的接口了。 注意：viewWillLayoutSubviews只能用在ViewController里面，在view里面没有响应。
 
-## 你实现过多线程的Core Data么？NSPersistentStoreCoordinator，NSManagedObjectContext
-
-和NSManagedObject中的哪些需要在线程中创建或者传递？你是用什么样的策略来实现的？ <https://onevcat.com/2014/03/common-background-practices/>
-
 ## Core开头的系列的内容。是否使用过CoreAnimation和CoreGraphics。UI框架和CA，CG框架的联系是什么？
 
 分别用CA和CG做过些什么动画或者图像上的内容。（有需要的话还可以涉及Quartz的一些内容） <https://onevcat.com/2013/04/using-blending-in-ios/>
@@ -1222,18 +1030,6 @@ else {
 
 自己创建的Timer，加入到哪个线程的RunLoop中就运行在哪个线程。
 
-## KVO，NSNotification，delegate及block区别
-
-KVO就是cocoa框架实现的观察者模式，一般同KVC搭配使用，通过KVO可以监测一个值的变化， 比如View的高度变化。是一对多的关系，一个值的变化会通知所有的观察者。
-
-NSNotification是通知，也是一对多的使用场景。在某些情况下，KVO和NSNotification是一样的， 都是状态变化之后告知对方。NSNotification的特点，就是需要被观察者先主动发出通知， 然后观察者注册监听后再来进行响应，比KVO多了发送通知的一步，但是其优点是监听不局限于属性的变化， 还可以对多种多样的状态变化进行监听，监听范围广，使用也更灵活。
-
-delegate 是代理，就是我不想做的事情交给别人做。比如狗需要吃饭，就通过delegate通知主人， 主人就会给他做饭、盛饭、倒水，这些操作，这些狗都不需要关心，只需要调用delegate（代理人）就可以了， 由其他类完成所需要的操作。所以delegate是一对一关系。
-
-block是delegate的另一种形式，是函数式编程的一种形式。使用场景跟delegate一样，相比delegate更灵活， 而且代理的实现更直观。
-
-KVO一般的使用场景是数据，需求是数据变化，比如股票价格变化，我们一般使用KVO（观察者模式）。 delegate一般的使用场景是行为，需求是需要别人帮我做一件事情，比如买卖股票，我们一般使用delegate。 Notification一般是进行全局通知，比如利好消息一出，通知大家去买入。delegate是强关联， 就是委托和代理双方互相知道，你委托别人买股票你就需要知道经纪人，经纪人也不要知道自己的顾客。 Notification是弱关联，利好消息发出，你不需要知道是谁发的也可以做出相应的反应， 同理发消息的人也不需要知道接收的人也可以正常发出消息。
-
 ## 如何让计时器(NSTimer)调用一个类方法
 
 计时器只能调用实例方法，但是可以在这个实例方法里面调用静态方法。
@@ -1246,41 +1042,6 @@ KVO一般的使用场景是数据，需求是数据变化，比如股票价格�
 
 静态方法，就是类方法，不需要，类方法对象放在autorelease中
 
-## NSObject的load和initialize方法
-
-**load和initialize的共同特点** 在不考虑开发者主动使用的情况下，系统最多会调用一次 如果父类和子类都被调用，父类的调用一定在子类之前 都是为了应用运行提前创建合适的运行环境 在使用时都不要过重地依赖于这两个方法，除非真正必要
-
-**load和initialize的区别** **load方法**
-
-调用时机比较早，运行环境有不确定因素。具体说来，在iOS上通常就是App启动时进行加载， 但当load调用的时候，并不能保证所有类都加载完成且可用，必要时还要自己负责做auto release处理。 对于有依赖关系的两个库中，被依赖的类的load会优先调用。但在一个库之内，调用顺序是不确定的。
-
-对于一个类而言，没有load方法实现就不会调用，不会考虑对NSObject的继承。
-
-一个类的load方法不用写明[super load]，父类就会收到调用，并且在子类之前。
-
-Category的load也会收到调用，但顺序上在主类的load调用之后。
-
-不会直接触发initialize的调用。
-
-**initialize方法相关要点**
-
-initialize的自然调用是在第一次主动使用当前类的时候。
-
-在initialize方法收到调用时，运行环境基本健全。
-
-initialize的运行过程中是能保证线程安全的。
-
-和load不同，即使子类不实现initialize方法，会把父类的实现继承过来调用一遍。注意的是在此之前， 父类的方法已经被执行过一次了，同样不需要super调用。
-
-由于initialize的这些特点，使得其应用比load要略微广泛一些。可用来做一些初始化工作， 或者单例模式的一种实现方案。
-
-## 能否向编译后得到的类中增加实例变量？能否向运行时创建的类中添加实例变量？为什么？
-
-不能向编译后得到的类中增加实例变量； 能向运行时创建的类中添加实例变量；
-
-因为编译后的类已经注册在 runtime 中，类结构体中的 objc_ivar_list 实例变量的链表 和 instance_size 实例变量的内存大小已经确定，同时runtime 会调用 class_setIvarLayout 或 class_setWeakIvarLayout 来处理 strong weak 引用。所以不能向存在的类中添加实例变量；
-
-运行时创建的类是可以添加实例变量，调用 class_addIvar 函数。但是得在调用 objc_allocateClassPair 之后， objc_registerClassPair 之前，原因同上。
 
 ## nil/Nil/NULL/NSNull
 
@@ -1329,43 +1090,6 @@ NSArray *arr = [NSArray arrayWithObjects:@"wang",@"zz",[NSNull null],@"foogry"];
 
 注意：NULL是C指针指向的值为空；nil是OC对象指针自己本身为空，不是值为空
 
-## 什么是事件响应链，点击屏幕时是如何互动的，事件的传递。
-
-对于IOS设备用户来说，他们操作设备的方式主要有三种：触摸屏幕、晃动设备、通过遥控设施控制设备。 对应的事件类型有以下三种：
-
-1. 触屏事件（Touch Event）
-2. 运动事件（Motion Event） 3.远端控制事件（Remote-Control Event）
-
-**响应者链（Responder Chain）** 响应者对象（Responder Object），指的是有响应和处理事件能力的对象。响应者链就是由一系列的响应者对象构成的一个层次结构。
-
-UIResponder是所有响应对象的基类，在UIResponder类中定义了处理上述各种事件的接口。 我们熟悉的UIApplication、 UIViewController、UIWindow和所有继承自UIView的UIKit类 都直接或间接的继承自UIResponder，所以它们的实例都是可以构成响应者链的响应者对象。
-
-响应者链有以下特点： 1、响应者链通常是由视图（UIView）构成的； 2、一个视图的下一个响应者是它视图控制器（UIViewController）（如果有的话），然后再转给它的父视图（Super View）； 3、视图控制器（如果有的话）的下一个响应者为其管理的视图的父视图； 4、单例的窗口（UIWindow）的内容视图将指向窗口本身作为它的下一个响应者 需要指出的是，Cocoa Touch应用不像Cocoa应用，它只有一个UIWindow对象，因此整个响应者链要简单一点； 5、单例的应用（UIApplication）是一个响应者链的终点，它的下一个响应者指向nil，以结束整个循环。
-
-**点击屏幕时是如何互动的** iOS系统检测到手指触摸(Touch)操作时会将其打包成一个UIEvent对象，并放入当前活动Application的事件队列， 单例的UIApplication会从事件队列中取出触摸事件并传递给单例的UIWindow来处理，UIWindow对象首 先会使用hitTest:withEvent:方法寻找此次Touch操作初始点所在的视图(View)， 即需要将触摸事件传递给其处理的视图，这个过程称之为hit-test view。
-
-UIWindow实例对象会首先在它的内容视图上调用hitTest:withEvent:，此方法会在其视图层级结构中的 每个视图上调用pointInside:withEvent:（该方法用来判断点击事件发生的位置是否处于当前视图范围内， 以确定用户是不是点击了当前视图），如果pointInside:withEvent:返回YES，则继续逐级调用， 直到找到touch操作发生的位置，这个视图也就是要找的hit-test view。
-
-hitTest:withEvent:方法的处理流程如下:首先调用当前视图的pointInside:withEvent:方法判断 触摸点是否在当前视图内；若返回NO,则hitTest:withEvent:返回nil;若返回YES,则向当前视图的 所有子视图(subviews)发送hitTest:withEvent:消息，所有子视图的遍历顺序是从最顶层视图一直到到最底层视图， 即从subviews数组的末尾向前遍历，直到有子视图返回非空对象或者全部子视图遍历完毕； 若第一次有子视图返回非空对象，则hitTest:withEvent:方法返回此对象，处理结束；如所有子视图都返回非， 则hitTest:withEvent:方法返回自身(self)。
-
-事件的传递和响应分两个链：
-
-传递链：由系统向离用户最近的view传递。UIKit –> active app's event queue –> window –> root view –>......–>lowest view 响应链：由离用户最近的view向系统传递。initial view –> super view –> .....–> view controller –> window –> Application
-
-## ARC和MRC
-
-Objective-c中提供了两种内存管理机制MRC（MannulReference Counting）和ARC(Automatic Reference Counting)， 分别提供对内存的手动和自动管理，来满足不同的需求。Xcode 4.1及其以前版本没有ARC。
-
-在MRC的内存管理模式下，与对变量的管理相关的方法有：retain,release和autorelease。 retain和release方法操作的是引用记数，当引用记数为零时，便自动释放内存。 并且可以用NSAutoreleasePool对象，对加入自动释放池（autorelease调用）的变量进行管理，当drain时回收内存。
-
-1. retain，该方法的作用是将内存数据的所有权附给另一指针变量，引用数加1，即retainCount+= 1;
-2. release，该方法是释放指针变量对内存数据的所有权，引用数减1，即retainCount-= 1;
-3. autorelease，该方法是将该对象内存的管理放到autoreleasepool中。
-
-在ARC中与内存管理有关的标识符，可以分为变量标识符和属性标识符，对于变量默认为__strong， 而对于属性默认为unsafe_unretained。也存在autoreleasepool。
-
-其中assign/retain/copy与MRC下property的标识符意义相同，strong类似与retain,assign类似于unsafe_unretained，strong/weak/unsafe_unretained与ARC下变量标识符意义相同，只是一个用于属性的标识， 一个用于变量的标识(带两个下划短线__)。所列出的其他的标识符与MRC下意义相同。
-
 ## 写一个单例模式
 
 ```objc
@@ -1380,7 +1104,7 @@ return sharedAccountManagerInstance;
 }
 ```
 
-## iOS Life Cycle
+## 108. iOS Life Cycle
 
 **应用程序的状态** **Not running未运行**：程序没启动。 **Inactive未激活**：程序在前台运行，不过没有接收到事件。在没有事件处理情况下程序通常停留在这个状态。 **Active激活**：程序在前台运行而且接收到了事件。这也是前台的一个正常的模式。 **Backgroud后台**：程序在后台而且能执行代码，大多数程序进入这个状态后会在在这个状态上停留一会。 时间到之后会进入挂起状态(Suspended)。有的程序经过特殊的请求后可以长期处于Backgroud状态。 **Suspended挂起**：程序在后台不能执行代码。系统会自动把程序变成这个状态而且不会发出通知。 当挂起时，程序还是停留在内存中的，当系统内存低时，系统就把挂起的程序清除掉，为前台程序提供更多的内存。
 
@@ -1437,7 +1161,7 @@ main函数的两个参数，iOS中没有用到，包括这两个参数是为了�
 
 注意：用户可以手工关闭应用程序。
 
-## 远程推送
+## 109. 远程推送
 
 当服务端远程向APNS推送至一台离线的设备时，苹果服务器Qos组件会自动保留一份最新的通知， 等设备上线后，Qos将把推送发送到目标设备上
 
@@ -1499,7 +1223,7 @@ main函数的两个参数，iOS中没有用到，包括这两个参数是为了�
 
 在后台的推送程序中使用发布版制作的证书并使用该deviceToken做推送服务. 使用开发和发布证书获取到的deviceToken是不一样的。
 
-## iOS的锁屏和解锁
+## 110. iOS的锁屏和解锁
 
 **idleTimer** idleTimer 是iOS内置的时间监测机制，当在一段时间内未操作即进入锁屏状态。但有些应用程序是不需要锁住屏幕的， 比如游戏，视频这类应用。 可以通过设置UIApplication的idleTimerDisabled属性来指定iOS是否锁屏。
 
@@ -1616,65 +1340,7 @@ position = position - 10;
 
 prepareWithInvocationTarget:方法记录了target并返回UndoManager， 然后UndoManager重载了forwardInvocation方法，也就将two方法的Invocation添加到undo栈中了。
 
-## 什么是OC
 
-OC语言在c语言的基础上，增加了一层最小的面向对象语法，完全兼容C语言，在OC代码中，可以混用c， 甚至是c++代码。可以使用OC开发mac osx平台和iOS平台的应用程序。拓展名：c语言.c OC语言.m 兼容C++.mm。
-
-为了与c语言的关键字区分开来,基本上所有的关键字都是以@开头。基本类型：5种，增加了布尔类型， BOOL类型与其他类型的用法一致，BOOL类型的本质是char类型的，定义如下：
-
-```objc
- Typedef signed char BOOL
-```
-
-宏定义:
-
-```objc
-#define YES  (BOOL)1
-#define NO   (BOOL)0
-```
-
-布尔类型的输出一般当做整数来用。 程序编译连接过程为：源文件（.m）---(编译)---->目标文件（.0）-----（链接）---->可执行文件（.out）。
-
-每个对象内部都默认有一个isa指针指向这个对象所使用的类。isa是对象中的隐藏指针，指向创建这个对象的类。 OC做为一门面向对象语言，具有面向对象的语言特性，如封装、继承、多态。也具有静态语言的特性(如C++)， 又有动态语言的效率(动态绑定、动态加载等)。
-
-Apple公司领导着Objective-C语言的发展与维护，包括Objective-C运行时， Cocoa/Cocoa-Touch框架以及Objective-C语言的编译器。
-
-## 什么是面向对象
-
-OC语言是面向对象的，c语言是面向过程的，面向对象和面向过程只是解决问题的两种思考方式， 面向过程关注的是解决问题涉及的步骤，面向对象关注的是设计能够实现解决问题所需功能的类。
-
-面向对象的编程方法具有四个基本特征：抽象，封装，继承和多态。
-
-抽象是忽略一个主题中与当前目标无关的那些方面，以便更充分地注意与当前目标有关的方面。 抽象包括两个方面，一是过程抽象，二是数据抽象。过程抽象是指任何一个明确定义功能的操作都可被使用者看作单个的实体看待， 尽管这个操作实际上可能由一系列更低级的操作来完成。数据抽象定义了数据类型和施加于该类型对象上的操作， 并限定了对象的值只能通过使用这些操作修改和观察。
-
-继承是一种联结类的层次模型，并且允许和鼓励类的重用，它提供了一种明确表述共性的方法。 新类继承了原始类的特性，新类称为原始类的派生类（子类），而原始类称为新类的基类（父类）。 派生类可以从它的基类那里继承方法和实例变量，并且类可以修改或增加新的方法使之更适合特殊的需要。 继承性很好的解决了软件的可重用性问题。
-
-封装是把过程和数据包围起来，对数据的访问只能通过已定义的界面。面向对象计算始于这个基本概念， 即现实世界可以被描绘成一系列完全自治、封装的对象，这些对象通过一个受保护的接口访问其他对象。 一旦定义了一个对象的特性，则有必要决定这些特性的可见性，封装保证了模块具有较好的独立性， 使得程序维护修改较为容易。对应用程序的修改仅限于类的内部，因而可以将应用程序修改带来的影响减少到最低限度。
-
-多态性是指允许不同类的对象对同一消息作出响应。多态性包括参数化多态性和包含多态性。 多态性语言具有灵活、抽象、行为共享、代码共享的优势，很好的解决了应用程序函数同名问题。**多态是依赖于接口的**。
-
-但是，在C++使用OOP的编程方式在一些场合未能提供最高性能。现在内存存取成为计算机性能的重要瓶颈， 这个问题在C++设计OOP编程范式的实现方式之初并未能考虑周全。现时的OOP编程有可能不缓存友好（cache friendly）， 导致有时候并不能发挥硬件最佳性能。大概就是过度封装，多态增加cache miss的可能性，数据存取时导致载入缓存的浪费等。
-
-## OC和传统的面向对象语言有什么区别和优势
-
-OC中方法的实现只能写在@implementation··@end中，对象方法的声明只能写在@interface···@end中间； 对象方法都以-号开头，类方法都以+号开头；对象方法只能由对象来调用，类方法只能由类来调用， 不能当做函数一样调用。函数属于整个文件，可以写在文件中的任何位置，包括@implementation··@end中， 但写在@interface···@end会无法识别，函数的声明可以在main函数内部也可以在main函数外部。 对象方法归类\对象所有；函数调用不依赖于对象；函数内部不能直接通过成员变量名访问对象的成员变量。
-
-Objective-C的运行时是动态的，它能让你在运行时为类添加方法或者去除方法以及使用反射。 OC的动态特性表现为了三个方面：动态类型、动态绑定、动态加载。之所以叫做动态， 是因为必须到运行时(run time)才会做一些事情。
-
-动态类型，说简单点就是id类型。动态类型是跟静态类型相对的。像内置的明确的基本类型都属于静态类型(int、NSString等)。 静态类型在编译的时候就能被识别出来。所以，若程序发生了类型不对应，编译器就会发出警告。 而动态类型就编译器编译的时候是不能被识别的，要等到运行时(run time)，即程序运行的时候才会根据语境来识别。 所以这里面就有两个概念要分清：编译时跟运行时。
-
-动态绑定(dynamic binding)需要用到@selector/SEL。先来看看"函数"，对于其他一些静态语言， 比如c++,一般在编译的时候就已经将要调用的函数的函数签名都告诉编译器了。静态的，不能改变。而在OC中， 其实是没有函数的概念的，我们叫"消息机制"，所谓的函数调用就是给对象发送一条消息。这时， 动态绑定的特性就来了。OC可以先跳过编译，到运行的时候才动态地添加函数调用，在运行时才决定要调用什么方法， 需要传什么参数进去。这就是动态绑定，要实现他就必须用SEL变量绑定一个方法。 最终形成的这个SEL变量就代表一个方法的引用。这里要注意一点：**SEL并不是C里面的函数指针**，虽然很像， 但真心不是函数指针。SEL变量只是一个整数，他是该方法的ID。以前的函数调用，是根据函数名， 也就是字符串去查找函数体。但现在，我们是根据一个ID整数来查找方法，整数的查找字自然要比字符串的查找快得多！ 所以，动态绑定的特定不仅方便，而且效率更高。
-
-动态加载就是根据需求动态地加载资源，在运行时加载新类。在运行时创建一个新类,只需要3步:
-
-1. 为 class pair分配存储空间 ,使用 objc_allocateClassPair函数
-2. 增加需要的方法使用class_addMethod函数,增加实例变量用class_addIvar
-3. 用objc_registerClassPair函数注册这个类,以便它能被别人使用。
-
-> 使用这些函数请引#import
-
-> <objc runtime.h="">
-> </objc>
 
 ## UIWindow
 
