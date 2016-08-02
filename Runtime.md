@@ -647,6 +647,7 @@ Aspects 就是一个不错的 AOP 库，封装了 Runtime ， Method Swizzling �
 利用 objective-C Runtime 特性和 Aspect Oriented Programming ，我们可以把琐碎事务的逻辑从主逻辑中分离出来，作为单独的模块。它是对面向对象编程模式的一个补充。Logging 是个经典的应用，这里做个抛砖引玉，发挥想象力，可以做出其他有趣的应用。
 
 参考文章：
+- [Runtime 10种用法](http://www.jianshu.com/p/3182646001d1)最全总结
 - [**Objective-C Runtime 1小时入门教程**](http://www.ianisme.com/ios/2019.html) -ian
 - [**刨根问底Objective－C Runtime**](http://chun.tips/blog/2014/11/05/bao-gen-wen-di-objective[nil]c-runtime(1)[nil]-self-and-super/)
 - [理解 Objective-C Runtime](http://justinyan.me/post/1624)
