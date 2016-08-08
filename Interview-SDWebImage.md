@@ -1,4 +1,6 @@
 ## SDWebImage里面给UIImageView加载图片的逻辑是什么样的？
+
+[SDWebImage 学习笔记](https://everettjf.github.io/2016/04/03/learn-sdwebimage)
 **options所有选项：**
 ```objc
      //失败后重试
