@@ -1,5 +1,5 @@
 # Interview-desgin Patterns
-
+## [23种设计模式](http://blog.csdn.net/zhengzhb/article/category/926691/1)
 ## 对MVC和MVVM的理解 你还熟悉什么设计模式？
 
 MVC是出现比较早的架构设计模式，而且到现在已经是很成熟了。出现MVVM的原因是MVC中的V越来越复杂， 于是才有人想要给V瘦身。

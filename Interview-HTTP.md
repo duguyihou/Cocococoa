@@ -18,6 +18,8 @@ TCP关闭连接时，握手的过程大致如下：
 
 TCP关闭连接之所以需要四次握手，是因为TCP连接是全双工，是双向的。
 
+[计算机网络的五层协议体系](http://coderyi.com/posts/network/)
+
 ## 在一个HTTPS连接的网站里，输入账号密码点击登录后，到服务器返回这个请求前，中间经历了什么
 
 ![HTTPS加密流程](http://7xs5iw.com1.z0.glb.clouddn.com/1721232-75f07ac2d2897ff2.png)
