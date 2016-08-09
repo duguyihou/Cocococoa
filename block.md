@@ -50,9 +50,9 @@ cocoaTouch框架下动画效果的Block的调用
 
 使用typed声明block
 
-typedef?void(^didFinishBlock)?(NSObject?*ob); 这就声明了一个didFinishBlock类型的block， 然后便可用
+`typedef void(^didFinishBlock) (NSObject *ob);` 这就声明了一个didFinishBlock类型的block， 然后便可用
 
-@property?(nonatomic,copy)?didFinishBlock?finishBlock; 声明一个blokc对象，注意对象属性设置为copy，接到block 参数时，便会自动复制一份。
+`@property (nonatomic,copy) didFinishBlock finishBlock;` 声明一个blokc对象，注意对象属性设置为copy，接到block 参数时，便会自动复制一份。
 
 __block是一种特殊类型，
 
@@ -64,8 +64,8 @@ KVO就是cocoa框架实现的观察者模式，一般同KVC搭配使用，通过
 
 NSNotification是通知，也是一对多的使用场景。在某些情况下，KVO和NSNotification是一样的， 都是状态变化之后告知对方。NSNotification的特点，就是需要被观察者先主动发出通知， 然后观察者注册监听后再来进行响应，比KVO多了发送通知的一步，但是其优点是监听不局限于属性的变化， 还可以对多种多样的状态变化进行监听，监听范围广，使用也更灵活。
 
-delegate 是代理，就是我不想做的事情交给别人做。比如狗需要吃饭，就通过delegate通知主人， 主人就会给他做饭、盛饭、倒水，这些操作，这些狗都不需要关心，只需要调用delegate（代理人）就可以了， 由其他类完成所需要的操作。所以delegate是一对一关系。
+delegate 是代理，就是我不想做的事情交给别人做,是一对一关系。
 
 block是delegate的另一种形式，是函数式编程的一种形式。使用场景跟delegate一样，相比delegate更灵活， 而且代理的实现更直观。
 
-KVO一般的使用场景是数据，需求是数据变化，比如股票价格变化，我们一般使用KVO（观察者模式）。 delegate一般的使用场景是行为，需求是需要别人帮我做一件事情，比如买卖股票，我们一般使用delegate。 Notification一般是进行全局通知，比如利好消息一出，通知大家去买入。delegate是强关联， 就是委托和代理双方互相知道，你委托别人买股票你就需要知道经纪人，经纪人也不要知道自己的顾客。 Notification是弱关联，利好消息发出，你不需要知道是谁发的也可以做出相应的反应， 同理发消息的人也不需要知道接收的人也可以正常发出消息。
+>KVO一般的使用场景是数据，需求是数据变化，比如股票价格变化，我们一般使用KVO（观察者模式）。 delegate一般的使用场景是行为，需求是需要别人帮我做一件事情，比如买卖股票，我们一般使用delegate。 Notification一般是进行全局通知，比如利好消息一出，通知大家去买入。delegate是强关联， 就是委托和代理双方互相知道，你委托别人买股票你就需要知道经纪人，经纪人也不要知道自己的顾客。 Notification是弱关联，利好消息发出，你不需要知道是谁发的也可以做出相应的反应， 同理发消息的人也不需要知道接收的人也可以正常发出消息。
