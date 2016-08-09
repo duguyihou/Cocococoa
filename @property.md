@@ -108,7 +108,7 @@ The car name is Jeep Cherokee and the type is SUV
 
 @end
 ```
-上面代码中，我们使用@property声明两个属性，名称与实例变量名称相同（让我们先忽略nonatomic和strong）。
+上面代码中，我们使用@property声明两个属性，名称与实例变量名称相同。
 ```
 // Car.m
 
@@ -209,7 +209,7 @@ The car name is Jeep Compass and the type is SUV
 @synthesize carType = _carType;
 ```
 
-那么如果我们不喜欢默认的实例变量命名方法，或者我们希望使用更有语义的名称，应该怎么做呢。其实很简单：
+那么如果我们不喜欢默认的实例变量命名方法，或者我们希望使用更有语义的名称.
 
 ```
 // Car.m
