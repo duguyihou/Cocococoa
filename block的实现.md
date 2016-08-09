@@ -3,6 +3,8 @@
 
 test.m 代码
 ```
+#import <Foundation/Foundation.h>
+
 int main()
 {
     void (^blk)(void) = ^{ printf("Block\n"); };
@@ -56,7 +58,7 @@ int main()
 }
 ```
 
-## block 结构体信息详解
+## block 结构体
 ### struct __block_impl
 
 ```
@@ -71,15 +73,15 @@ struct __block_impl
 ```
 
 * `isa`
-  指向实例对象，表明 block 本身也是一个 Objective-C 对象。block 的三种类型：`_NSConcreteStackBlock`、`_NSConcreteGlobalBlock`、`_NSConcreteMallocBlock`，即当代码执行时，isa 有三种值
-  >- impl.isa = &_NSConcreteStackBlock;
+  指向实例对象，表明 block 本身也是一个objc对象。block 的三种类型：`_NSConcreteStackBlock`、`_NSConcreteGlobalBlock`、`_NSConcreteMallocBlock`,即当代码执行时，isa 有三种值
+  - impl.isa = &_NSConcreteStackBlock;
   - impl.isa = &_NSConcreteMallocBlock;
   - impl.isa = &_NSConcreteGlobalBlock;
 
-  >从这些实例对象可以看出 block 所在内存区域分别为stack、ROData、heap，后面文章会详说。
+  >从这些实例对象可以看出 block 所在内存区域分别为stack、ROData、heap。
 
 * `Flags`
-按位承载 block 的附加信息；
+按位承载block的附加信息；
 * `Reserved`
 保留变量；
 * `FuncPtr`
@@ -88,7 +90,7 @@ struct __block_impl
 ### struct __main_block_impl_0
 
 ```
-// __main_block_impl_0 是 block 实现的结构体，也是 block 实现的入口
+// __main_block_impl_0 是block实现的结构体，也是block实现的入口
 struct __main_block_impl_0
 {
     struct __block_impl impl;
@@ -131,7 +133,7 @@ static struct __main_block_desc_0
 * `reserved`
 结构体信息保留字段
 * `Block_size`
-结构体大小
+结构体大小:
 此处已定义了一个该结构体类型的变量 `__main_block_desc_0_DATA`
 
 ## block 实现的执行流程
@@ -145,6 +147,8 @@ static struct __main_block_desc_0
 
 运行下面的代码
 ```
+#import <Foundation/Foundation.h>
+
 int main()
 {
     int intValue = 1;
@@ -161,7 +165,7 @@ intValue = 1
 
 和第一段源码不同的是，这里多了个局部变量 intValue，而且还在 block 里面获取到了。
 
-通过前一段对 block 源码的学习，我们已经了解到 block 的函数定义在 main() 函数之外，那它又是如何获取 main() 里面的局部变量呢？为了解开疑惑，我们再次用 clang 重写这段代码
+通过前一段对 block 源码的学习，我们已经了解到 block 的函数定义在 main() 函数之外，它又是如何获取 main() 里面的局部变量呢?再次用 clang 重写这段代码
 ```
 struct __block_impl
 {
