@@ -2,15 +2,14 @@
 ### 对block的理解
 
 Block分为三种，分别是全局block、栈block和堆block。ARC之后，我们并不需要手动copy到堆上， 通常都已经交给编译器来完成。
-1. 使用block和使用delegate完成委托模式有什么优点?
 
-首先要了解什么是委托模式，委托模式在iOS中大量应用，其在设计模式中是适配器模式中的对象适配器， Objective-C中使用id类型指向一切对象，使委托模式更为简洁。了解委托模式的细节：
+1. 使用block比delegate完成委托模式有什么优点?
 
+委托模式在设计模式中是适配器模式中的对象适配器， **Objective-C中使用id类型指向一切对象**，使委托模式更为简洁。
+了解委托模式的细节：
 iOS设计模式---委托模式
-
-使用block实现委托模式，其优点是回调的block代码块定义在委托对象函数内部，使代码更为紧凑;
-
-适配对象不再需要实现具体某个protocol，代码更为简洁。
+**使用block实现委托模式，其优点是回调的block代码块定义在委托对象函数内部，使代码更为紧凑;**
+**适配对象不再需要实现具体某个protocol，代码更为简洁。**
 
 2. 多线程与block
 
@@ -22,14 +21,14 @@ GCD编程实例
 
 dispatch_async的完整定义
 
-void?dispatch_async( dispatch_queue_t?queue, dispatch_block_t?block); 功能：在指定的队列里提交一个异步执行的block，不阻塞当前线程
-
+`void dispatch_async( dispatch_queue_t queue, dispatch_block_t block); `
+功能：在指定的队列里提交一个异步执行的block，不阻塞当前线程
 通过queue来控制block执行的线程。主线程执行前文定义的 finishBlock对象
 
-dispatch_async(dispatch_get_main_queue(),^(void){finishBlock();});
+`dispatch_async(dispatch_get_main_queue(),^(void){finishBlock();});`
 
 
-### __block在arc和非arc下含义一样吗？
+### \_\_block在arc和非arc下含义一样吗？
 
 是不一样的。 在MRC中**block variable在block中使用是不会retain的 但是ARC中**block则会Retain。 取而代之的是用**weak或是**unsafe_unretained來更精确的描述weak reference的目的 其中前者只能在iOS5之后可以使用，但是比较好 (该对象release之后，此pointer会自动设成成nil) 而后者是ARC的环境下为了兼容4.x的解決方案。
 
