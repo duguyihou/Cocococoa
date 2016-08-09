@@ -35,7 +35,7 @@ setValue:forKey: 方法可以给指定的与接收者相关的键赋值为给定
 
 你还需要额外考虑的是，在你给一个没有对象的属性赋值为 nil 会发生什么呢？这种情况下，接收者会给自己发送 `setNilValueForKey:`的消息。默认的 `setNilValueForKey:`实现会抛出一个 NSInvalidArgumentException。你的应用可以重载这个方法来替代默认值或者标记的值，然后用新的值调用 `setValue:forKey:`。
 
-## KVC & 点的语法
+## KVC & 点语法
 Objective-C中的点语法和KVC是相互垂直的两种用法。无论是否使用点句法，你都可以使用KVC，也无论你是否使用KVC，你都可以使用点句法。虽然点句法随时都可以使用，但是用法有不同。(You can use key-value coding whether or not you use the dot syntax, and you can use the dot syntax whether or not you use KVC. Both, though, make use of a “dot syntax.” )在KVC里，点语法是用来界定键路径当中的元素的。记住，当你用点语法调用一个属性的时候，你调用的是接收者的标准存取器方法。
 
 你可以使用KVC调用一个属性，下面给出了一个定义类的样例：
