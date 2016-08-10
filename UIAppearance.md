@@ -64,4 +64,5 @@
 - (PropertyType)propertyForAxis1:(IntegerType)axis1 axis2:(IntegerType)axis2 axisN:(IntegerType)axisN;
 ```
 
-**UIAppearance实现原理** 在通过UIAppearance调用"UI_APPEARANCE_SELECTOR"标记的方法来配置外观时，UIAppearance实际上没有进行任何实际调用，而是把这个调用保存起来（在Objc中可以用NSInvocation对象来保存一个调用）。当实际的对象显示之前（添加到窗口上，drawRect:之前），就会对这个对象调用之前保存的调用。当这个setter调用后，你的界面风格自定义就完成了。
+**UIAppearance实现原理**
+在通过UIAppearance调用"UI_APPEARANCE_SELECTOR"标记的方法来配置外观时，UIAppearance实际上没有进行任何实际调用，而是把这个调用保存起来（在Objc中可以用NSInvocation对象来保存一个调用）。当实际的对象显示之前（添加到窗口上，drawRect:之前），就会对这个对象调用之前保存的调用。当这个setter调用后，你的界面风格自定义就完成了。

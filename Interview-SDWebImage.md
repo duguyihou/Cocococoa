@@ -93,6 +93,7 @@ SDImageCacheDelegate 回调 imageCache:didFindImage:forKey:userInfo:。进而回
 通过对UIImageView的类别扩展来实现异步加载替换图片的工作。
 
 主要用到的对象：
+
 1. UIImageView (WebCache)类别，入口封装，实现读取图片完成后的回调
 2. SDWebImageManager，对图片进行管理的中转站，记录那些图片正在读取。
 向下层读取Cache（调用SDImageCache），或者向网络读取对象（调用SDWebImageDownloader） 。
@@ -103,6 +104,8 @@ SDImageCacheDelegate 回调 imageCache:didFindImage:forKey:userInfo:。进而回
 
 其他类：
 SDWebImageDecoder，异步对图像进行了一次解压⋯⋯
+
+
 1. SDImageCache是怎么做数据管理的?
 
 SDImageCache分两个部分，一个是内存层面的，一个是硬盘层面的。内存层面的相当是个缓存器，
@@ -112,6 +115,7 @@ SDImageCache分两个部分，一个是内存层面的，一个是硬盘层面�
 将图片对象放到内存层面做备份，再返回调用层。
 
 2. 为啥必须做Decoder?
+
 由于UIImage的imageWithData函数是每次画图的时候才将Data解压成ARGB的图像，所以在每次画图的时候，
 会有一个解压操作，这样效率很低，但是只有瞬时的内存需求。为了提高效率通过SDWebImageDecoder将包装在Data下的资源解压，
 然后画在另外一张图片上，这样这张新图片就不再需要重复解压了。

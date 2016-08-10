@@ -3,6 +3,7 @@
 1. 设备将touch到的UITouch和UIEvent对象打包, 放到当前活动的Application的事件队列中
 2. 单例的UIApplication会从事件队列中取出触摸事件并传递给单例UIWindow
 3. UIWindow使用hitTest:withEvent:方法查找touch操作的所在的视图view
+
 ## RunLoop
 1. 主线程的RunLoop被唤醒
 2. 通知Observer，处理Timer和Source 0

@@ -60,6 +60,7 @@ Protocol有两种声明的方式：
 
 * Objective-C里的Protocol和Java语言中的接口很类似，如果一些类之间没有继承关系，但是又具备某些相同的行为，则可以使用Protocol来描述它们的关系。
 * 不同的类，可以遵守同一个Protocol，在不同的场景下注入不同的实例，实现不同的功能。
+
 ## 需要注意的问题
 * 根据约定，框架中后缀为Delegate的都是Protocol，例如UIApplicationDelegate，UIWebViewDelegate等。
 * Protocol本身是可以继承的，比如：

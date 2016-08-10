@@ -33,6 +33,7 @@ CADisplayLink比起用NSTimer的好处就是我们不需要在格外关心屏幕
 ### 给非UI对象添加动画效果
 动画效果就是一个属性的线性变化，比如UIView 动画的`EasyInEasyOut`。通过数值按照不同速率的变化我们能生成更接近真实世界的动画效果。我们也可以利用这个特性来使一些其他属性按照我们期望的曲线变化。比如**当播放视频时关掉视频的声音我可以通过CADisplayLink来实现一个EasyOut的渐出效果:先快速的降低音量,在慢慢的渐变到静音.**
 >注意通常来讲：iOS设备的刷新频率事60HZ也就是每秒60次。那么每一次刷新的时间就是1/60秒 大概16.7毫秒。当我们的frameInterval值为1的时候我们需要保证的是 CADisplayLink调用的｀target｀的函数计算时间不应该大于 16.7否则就会出现严重的丢帧现象。在mac应用中我们使用的不是CADisplayLink而是CVDisplayLink.它是基于C接口的用起来配置有些麻烦但是用起来还是很简单的。
+
 ### 创建方法
 ```objc
 displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(handleDisplayLink:)];    
@@ -68,7 +69,10 @@ dispatch_after(popTime, dispatch_get_main_queue(), ^(void){    //执行事件   
 ### 重复执行
 ```objc
 NSTimeInterval period = 1.0; //设置时间间隔    
-dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);    dispatch_source_t _timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);    dispatch_source_set_timer(_timer, dispatch_walltime(NULL, 0), period * NSEC_PER_SEC, 0); //每秒执行   dispatch_source_set_event_handler(_timer, ^{    //在这里执行事件    });
+dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_source_t _timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
+dispatch_source_set_timer(_timer, dispatch_walltime(NULL, 0), period * NSEC_PER_SEC, 0); //每秒执行
+dispatch_source_set_event_handler(_timer, ^{    //在这里执行事件    });
 dispatch_resume(_timer);
 ```
 
