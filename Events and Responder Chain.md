@@ -22,7 +22,7 @@ Responder 继承链如下：
 
 ## 响应者链（responder chain）
 
-当一个事件发生时，如果 first responder 不处理，事件就会继续往下传递，被下个 responder 接收，如果下个 responder 也不处理，又会被下下个 responder 接收...... 直到一个 responder 处理了事件或者没有 responder 了。这些 responder 按照传递次序连接起来的链条就构成了响应者链。
+当一个事件发生时，如果 first responder 不处理，事件就会继续往下传递，被下个 responder 接收，如果下个 responder 也不处理，又会被下下个 responder 接收...... 直到一个 responder 处理了事件或者没有 responder 了。这些 responder 按照传递次序连接起来的链条就构成了**响应者链**。
 
 iOS 上的响应者链：
 
@@ -31,7 +31,7 @@ iOS 上的响应者链：
 由于不同的 app 内的布局和层次结构的不同，响应顺序也会有所不同，但事件的传递路径会遵守基本规则。从图中可以看到，响应者链有以下特点：
 
 - 响应者链通常是由 initial view 开始；
-- UIView 的 nextResponder 它的 superview；如果 UIView 已经是其所在的 UIViewController 的 top view，那么 UIView 的 nextResponder 就是 UIViewController；
+- UIView 的 nextResponder 是它的 superview；如果 UIView 已经是其所在的 UIViewController 的 top view，那么 UIView 的 nextResponder 就是 UIViewController；
 - UIViewController 如果有 Super ViewController，那么它的 nextResponder 为其 Super ViewController 最表层的 View；如果没有，那么它的 nextResponder 就是 UIWindow；
 - UIWindow 的 contentView 指向 UIApplication，将其作为 nextResponder；
 - UIApplication 是一个响应者链的终点，它的 nextResponder 指向nil，整个 responder chain 结束。
