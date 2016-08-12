@@ -1,0 +1,2 @@
+- [Swift中字典的实现原理](http://www.jianshu.com/p/0caa1076b751)
+- [Exploring Swift Dictionary's Implementation](https://ankit.im/swift/2016/01/20/exploring-swift-dictionary-implementation/?utm_campaign=This+Week+in+Swift&utm_medium=email&utm_source=This_Week_in_Swift_71)
