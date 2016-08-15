@@ -551,6 +551,38 @@ init();
 ```
 
 [面试时该死的排序算法](http://coderyi.com/posts/sort_algorithm/)
+# 阿里一面
+
+1. MVC 具有什么样的优势，各个模块之间怎么通信，比如点击 Button 后 怎么通知 Model？
+2. 两个无限长度链表（也就是可能有环） 判断有没有交点
+3. UITableView 的相关优化
+4. KVO、Notification、delegate 各自的优缺点，效率还有使用场景
+5. 如何手动通知 KVO
+6. Objective-C 中的 copy 方法
+7. runtime 中，SEL 和 IMP 的区别
+8. autoreleasepool 的使用场景和原理
+9. RunLoop 的实现原理和数据结构，什么时候会用到
+10. block 为什么会有循环引用
+11. 使用 GCD 如何实现这个需求：A、B、C 三个任务并发，完成后执行任务 D。
+12. NSOperation 和 GCD 的区别
+13. CoreData 的使用，如何处理多线程问题
+14. 如何设计图片缓存？
+15. 有没有自己设计过网络控件？
+## 阿里二面：
+
+1. 怎么判断某个 cell 是否显示在屏幕上
+2. 进程和线程的区别
+3. TCP 与 UDP 区别
+4. TCP 流量控制
+5. 数组和链表的区别
+6. UIView 生命周期
+7. 如果页面 A 跳转到 页面 B，A 的 viewDidDisappear 方法和 B 的 viewDidAppear 方法哪个先调用？
+8. block 循环引用问题
+9. ARC 的本质
+10. RunLoop 的基本概念，它是怎么休眠的？
+11. Autoreleasepool 什么时候释放，在什么场景下使用？
+12. 如何找到字符串中第一个不重复的字符
+13. 哈希表如何处理冲突
 
 ## 数据结构
 - 数组，链表，哈希表，二叉树的区别？数组索引和查找方便。链表插入和删除方便，
